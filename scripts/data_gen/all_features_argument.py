@@ -307,6 +307,10 @@ def main():
     MALIGN_MN = args.malign_mn
     MALIGN_MX = args.malign_mx
     MALIGN_SG = args.malign_sg
+    new_proteins = args.new_proteins
+    only_new_proteins = args.only_new_proteins
+    not_use_membrane_proteins = args.not_use_membrane_proteins
+    PROP_LIST_Flag = args.prop_list_flag
     
     # Set up logging
     log_dir = args.log_dir or os.path.join(OUT_DIR, "logs")
