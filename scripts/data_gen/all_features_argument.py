@@ -19,7 +19,7 @@ monomers
         - STAR file mapping particle coordinates and orientations with tomograms
 """
 
-__author__ = "Antonio Martinez-Sanchez"
+__author__ = "Antonio Martinez-Sanchez", "Yusuf Berk Oruc"
 
 import sys
 import csv
