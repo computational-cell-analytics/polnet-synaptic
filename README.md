@@ -67,17 +67,17 @@ Features:
 
 1. Run the Script with Default Parameters:
     ```console
-    python all_features_argument.py .
+    python all_features_argument.py 
     ```
 
 2.Run the Script with Custom Output Directory:
     ```console
-    python all_features_argument.py --out_dir /path/to/output .
+    python all_features_argument.py --out_dir /path/to/output 
     ```
 
 3.Run the Script with Custom VOI Shape and Number of Tomograms:
     ```console
-    python all_features_argument.py --voi_shape 1024 1024 250 --ntomos 10 .
+    python all_features_argument.py --voi_shape 1024 1024 250 --ntomos 10
     ```
 4.Preview Input Files:
 The script automatically previews input files and saves them as .tar.gz archives in the output directory.
