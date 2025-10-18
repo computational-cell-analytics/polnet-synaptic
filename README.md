@@ -127,15 +127,6 @@ The script generates detailed statistics for each simulated tomogram, including:
 * Total time taken for the simulation
 
 ---
-
-You can optionally add this line at the top of your README if you want a title banner:
-
-```markdown
-# 🧬 All Features Tomogram Simulation Script
-```
-
-Would you like me to also include an **“Installation”** section (dependencies and environment setup, e.g., NumPy, VTK, mrcfile)? That would make it more complete for GitHub.
-
     
 ## Documentation
 
