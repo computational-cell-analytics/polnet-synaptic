@@ -19,7 +19,7 @@ monomers
         - STAR file mapping particle coordinates and orientations with tomograms
 """
 
-__author__ = "Antonio Martinez-Sanchez", "Yusuf Berk Oruc"
+__author__ = "Antonio Martinez-Sanchez"
 
 import sys
 import csv
@@ -142,14 +142,17 @@ def parse_arguments():
     parser.add_argument('--mmer_tries', type=int, default=10, help='Number of monomer placement tries')
     parser.add_argument('--pmer_tries', type=int, default=1000, help='Number of polymer placement tries')
     
-    # Feature selection
-    parser.add_argument('--no_membranes', action='store_true', help='Disable membrane simulation')
-    parser.add_argument('--no_helices', action='store_true', help='Disable helix simulation')
-    parser.add_argument('--no_proteins', action='store_true', help='Disable protein simulation')
-    parser.add_argument('--no_mb_proteins', action='store_true', help='Disable membrane protein simulation')
-    parser.add_argument('--use_new_proteins', action='store_true', help='Use new protein list')
-    parser.add_argument('--only_new_proteins', action='store_true', help='Use only new proteins')
-    parser.add_argument('--use_new_mb_proteins', action='store_true', help='Use new membrane proteins only')
+    # Feature selection - preserving the original conditional logic
+    parser.add_argument('--new_proteins', action='store_true', 
+                       help='Add new proteins to existing protein list (like original new_proteins flag)')
+    parser.add_argument('--only_new_proteins', action='store_true',
+                       help='Use only new proteins (overrides new_proteins)')
+    parser.add_argument('--no_cytosolic_proteins', action='store_true',
+                       help='Disable all cytosolic proteins (like original no_cytosolic_proteins)')
+    parser.add_argument('--not_use_membrane_proteins', action='store_true',
+                       help='Disable membrane proteins (like original not_use_membrane_proteins)')
+    parser.add_argument('--use_new_membrane_proteins_only', action='store_true',
+                       help='Use only new membrane proteins (like original use_new_membrane_proteins_only)')
     
     # Reconstruction parameters
     parser.add_argument('--tilt_angs', type=float, nargs='+', default=np.arange(-60, 60, 3).tolist(),
@@ -168,13 +171,21 @@ def parse_arguments():
     parser.add_argument('--no_logging', action='store_true', help='Disable logging')
     parser.add_argument('--print_parameters', action='store_true', help='Print parameters and exit')
     
+    # Shape selection (mutually exclusive)
+    shape_group = parser.add_mutually_exclusive_group()
+    shape_group.add_argument('--synaptic_shape', action='store_true', help='Use synaptic shape (1024,1024,500)')
+    shape_group.add_argument('--czII_challenge_shape', action='store_true', help='Use CZII challenge shape (630,630,184)')
+    shape_group.add_argument('--polnet_shape', action='store_true', help='Use Polnet shape (1024,1024,250)')
+    
     return parser.parse_args()
 
 def get_feature_lists(args):
-    """Get the lists of features based on arguments"""
-    # Default lists
+    """Get the lists of features based on arguments - preserving original conditional logic"""
+    # Default lists (same as original)
     MEMBRANES_LIST = [
+        #"in_mbs/sphere.mbs",
         "in_mbs/ellipse.mbs",
+        #"in_mbs/toroid.mbs",
     ]
 
     HELIX_LIST = ["in_helix/mt.hns", "in_helix/actin.hns"]
@@ -237,25 +248,29 @@ def get_feature_lists(args):
         "in_10A/1fa2_10A.pns"
     ]
 
-    # Apply feature selection
-    if args.no_membranes:
-        MEMBRANES_LIST = []
-    
-    if args.no_helices:
-        HELIX_LIST = []
-    
-    if args.no_proteins:
+    # Apply feature selection - PRESERVING ORIGINAL CONDITIONAL LOGIC
+    # Original conditionals from the code:
+    # if new_proteins:
+    #     PROTEINS_LIST += NEW_PROTEINS_LIST
+    # if only_new_proteins:
+    #     PROTEINS_LIST = NEW_PROTEINS_LIST
+    # if no_cytosolic_proteins:
+    #     PROTEINS_LIST = []
+    # if not_use_membrane_proteins:
+    #     MB_PROTEINS_LIST = []
+    # if use_new_membrane_proteins_only:
+    #     MB_PROTEINS_LIST = MB_PROTEINS_LIST_NEW
+
+    if args.new_proteins:
+        PROTEINS_LIST += NEW_PROTEINS_LIST
+    if args.only_new_proteins:
+        PROTEINS_LIST = NEW_PROTEINS_LIST
+    if args.no_cytosolic_proteins:
         PROTEINS_LIST = []
-    else:
-        if args.use_new_proteins:
-            PROTEINS_LIST += NEW_PROTEINS_LIST
-        if args.only_new_proteins:
-            PROTEINS_LIST = NEW_PROTEINS_LIST
-    
-    if args.no_mb_proteins:
-        MB_PROTEINS_LIST = []
-    elif args.use_new_mb_proteins:
+    if args.use_new_membrane_proteins_only:
         MB_PROTEINS_LIST = MB_PROTEINS_LIST_NEW
+    if args.not_use_membrane_proteins:
+        MB_PROTEINS_LIST = []
 
     return MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST
 
@@ -276,7 +291,18 @@ def get_proportion_list(args, proteins_list):
         return prop_list
     return None
 
-def print_parameters(args, membranes_list, helix_list, proteins_list, mb_proteins_list, prop_list):
+def get_voi_shape(args):
+    """Get VOI shape based on shape selection flags"""
+    if args.synaptic_shape:
+        return (1024, 1024, 500)
+    elif args.czII_challenge_shape:
+        return (630, 630, 184)
+    elif args.polnet_shape:
+        return (1024, 1024, 250)
+    else:
+        return tuple(args.voi_shape)
+
+def print_parameters(args, membranes_list, helix_list, proteins_list, mb_proteins_list, prop_list, voi_shape):
     """Print all parameters for verification"""
     print("=== Initial Parameters and Settings ===")
     print("ROOT_PATH:", args.root_path)
@@ -284,7 +310,7 @@ def print_parameters(args, membranes_list, helix_list, proteins_list, mb_protein
     print("ROOT_PATH_MEMBRANE:", args.root_path_membrane)
     print("ROOT_PATH_MB:", args.root_path_mb)
     print("NTOMOS:", args.ntomos)
-    print("VOI_SHAPE:", args.voi_shape)
+    print("VOI_SHAPE:", voi_shape)
     print("VOI_OFFS:", args.voi_offs)
     print("VOI_VSIZE:", args.voi_vsize)
     print("MMER_TRIES:", args.mmer_tries)
@@ -298,14 +324,18 @@ def print_parameters(args, membranes_list, helix_list, proteins_list, mb_protein
     print("PROP_LIST:", prop_list)
     print("PROP_LIST_Flag:", args.use_proportions)
     
-    print("\n--- Feature Selection ---")
-    print("no_membranes:", args.no_membranes)
-    print("no_helices:", args.no_helices)
-    print("no_proteins:", args.no_proteins)
-    print("no_mb_proteins:", args.no_mb_proteins)
-    print("use_new_proteins:", args.use_new_proteins)
+    print("\n--- Feature Selection (Preserving Original Logic) ---")
+    print("new_proteins:", args.new_proteins)
     print("only_new_proteins:", args.only_new_proteins)
-    print("use_new_mb_proteins:", args.use_new_mb_proteins)
+    print("no_cytosolic_proteins:", args.no_cytosolic_proteins)
+    print("not_use_membrane_proteins:", args.not_use_membrane_proteins)
+    print("use_new_membrane_proteins_only:", args.use_new_membrane_proteins_only)
+    
+    print("\n--- Shape Selection ---")
+    print("synaptic_shape:", args.synaptic_shape)
+    print("czII_challenge_shape:", args.czII_challenge_shape)
+    print("polnet_shape:", args.polnet_shape)
+    print("Final VOI_SHAPE:", voi_shape)
     
     print("\n--- Reconstruction Settings ---")
     print("TILT_ANGS:", args.tilt_angs)
@@ -965,7 +995,10 @@ def main():
     # Setup logging
     setup_logging(args.out_dir, not args.no_logging)
     
-    # Get feature lists based on arguments
+    # Get VOI shape based on shape selection
+    voi_shape = get_voi_shape(args)
+    
+    # Get feature lists based on arguments - PRESERVING ORIGINAL CONDITIONAL LOGIC
     MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST = get_feature_lists(args)
     
     # Get proportion list
@@ -980,7 +1013,7 @@ def main():
     
     # Print parameters if requested
     if args.print_parameters:
-        print_parameters(args, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST, PROP_LIST)
+        print_parameters(args, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST, PROP_LIST, voi_shape)
         return
     
     # Create output directories
@@ -999,7 +1032,7 @@ def main():
     # Prepare global parameters
     global_params = (
         args.root_path, args.root_path_actin, args.root_path_membrane, args.root_path_mb,
-        tuple(args.voi_shape), VOI_OFFS, args.voi_vsize, args.mmer_tries, args.pmer_tries,
+        voi_shape, VOI_OFFS, args.voi_vsize, args.mmer_tries, args.pmer_tries,
         MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
         PROP_LIST, args.surf_dec, TOMOS_DIR, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP
     )
