@@ -79,25 +79,30 @@ The script is **highly configurable** and allows users to specify parameters via
 
 ### ⚙️ Usage
 
-#### 1️⃣ Run the Script with Default Parameters
+#### 1 Run the Script with Default Parameters
 
 ```console
 python all_features_argument.py
 ```
 
-#### 2️⃣ Run the Script with Custom Output Directory
+#### 2 Run the Script with Custom Output Directory
 
 ```console
 python all_features_argument.py --out_dir /path/to/output
 ```
 
-#### 3️⃣ Run the Script with Custom VOI Shape and Number of Tomograms
+#### 3 Run the Script with Custom VOI Shape and Number of Tomograms
 
 ```console
 python all_features_argument.py --voi_shape 1024 1024 250 --ntomos 10
 ```
 
-#### 4️⃣ Preview Input Files
+#### 4 Run the Script with Synaptic Settings
+
+```console
+python all_features_short_sn_parallel.py --out_dir /path/to/output
+```
+#### 5 Preview Input Files
 
 The script automatically **previews input files** and saves them as **`.tar.gz` archives** in the output directory.
 
