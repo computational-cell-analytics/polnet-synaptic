@@ -28,6 +28,7 @@ import random
 import tarfile
 import math
 import numpy as np
+import argparse
 from polnet.utils import *
 from polnet import lio
 from polnet import tem
@@ -85,23 +86,20 @@ class LoggerWriter:
         if self.buffer:  # Write any remaining buffered content
             self.level(self.buffer.strip())
             self.buffer = ""
-# Set up logging
 
-# Define a hard-coded output directory
-#OUT_DIR = "/scratch-grete/projects/nim00007/cryo-et/synthetic_synaptic_data/all_v1"
-OUT_DIR = "/scratch-grete/projects/nim00007/cryo-et/synthetic_synaptic_data/simulation_dir_2/all_v1"
-os.makedirs(OUT_DIR, exist_ok=True)
-# Let the log files include the job number (if available)
-LOG_DIR = os.path.join(OUT_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-job_id = os.environ.get("SLURM_JOB_ID", "default")
-log_path = os.path.join(LOG_DIR, f"simulation-output_{job_id}.log")
-error_log_path = os.path.join(LOG_DIR, f"simulation_{job_id}_error.log")
+def setup_logging(out_dir, use_logging=True):
+    """Setup logging configuration"""
+    if not use_logging:
+        return
+        
+    os.makedirs(out_dir, exist_ok=True)
+    log_dir = os.path.join(out_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    job_id = os.environ.get("SLURM_JOB_ID", "default")
+    log_path = os.path.join(log_dir, f"simulation-output_{job_id}.log")
+    error_log_path = os.path.join(log_dir, f"simulation_{job_id}_error.log")
 
-USE_LOGGING = True # Set to False to disable logging
-
-if USE_LOGGING:
-    # Configure logging as before
+    # Configure logging
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     if logger.hasHandlers():
@@ -117,238 +115,226 @@ if USE_LOGGING:
     logger.info("Error logging initialized. Error log file: %s", error_log_path)
     sys.stdout = LoggerWriter(logger.info)
     sys.stderr = LoggerWriter(logger.error)
-##### Input parameters
 
-# Common tomogram settings
-#ROOT_PATH = os.path.realpath(os.getcwd() + "/../../data")
-ROOT_PATH = "/mnt/lustre-grete/usr/u15206/polnet/data_new_1"
-#ROOT_PATH_ACTIN = "/mnt/lustre-grete/usr/u15206/polnet/data_new"
-ROOT_PATH_ACTIN = "/mnt/lustre-grete/usr/u15206/polnet_data/data"
-#ROOT_PATH_MEMBRANE = "/mnt/lustre-grete/usr/u15206/polnet/data_new"
-ROOT_PATH_MEMBRANE = "/mnt/lustre-grete/usr/u15206/polnet_data/data"
-ROOT_PATH_MB = "/mnt/lustre-grete/usr/u15206/polnet_data/data"
-
-NTOMOS = 10  # 12
-"""VOI_SHAPE = (
-    1000,
-    1000,
-    250,
-)  # (1000, 1000, 400) # (400, 400, 236) # vx or a path to a mask (1-foreground, 0-background) tomogram"""
-#VOI_SHAPE = (1000,1000,250)
-synaptic_shape = False
-if synaptic_shape:
-    VOI_SHAPE = (1024,1024,500)
-czII_challenge_shape = True
-if czII_challenge_shape:
-    VOI_SHAPE = (630,630,184)
-polnet_shape = False
-if polnet_shape:
-    VOI_SHAPE = (1024,1024,250)
-    #VOI_SHAPE = (1000,1000,184) # for czII challenge data size
-VOI_OFFS = (
-    (4, 996),
-    (4, 996),
-    (4, 246),
-)  # ((4,396), (4,396), (4,232)) # ((4,1852), (4,1852), (32,432)) # ((4,1852), (4,1852), (4,232)) # vx
-VOI_VSIZE = 10 #2.2 A/vx
-MMER_TRIES = 1
-PMER_TRIES = 2000
-
-# Lists with the features to simulate
-# Membranes
-MEMBRANES_LIST = [
-    #"in_mbs/sphere.mbs",
-    "in_mbs/ellipse.mbs",
-    #"in_mbs/toroid.mbs",
-]
-
-# Helicoidal proteins
-HELIX_LIST = ["in_helix/mt.hns", "in_helix/actin.hns"]
-
-# Proteins
-PROTEINS_LIST = [
-    "in_10A/4v4r_10A.pns",
-    "in_10A/3j9i_10A.pns",
-    "in_10A/4v4r_50S_10A.pns",
-    "in_10A/4v4r_30S_10A.pns",
-    "in_10A/6utj_10A.pns",
-    "in_10A/5mrc_10A.pns",
-    "in_10A/4v7r_10A.pns",
-    "in_10A/2uv8_10A.pns",
-    "in_10A/4v94_10A.pns",
-    "in_10A/4cr2_10A.pns",
-    "in_10A/3qm1_10A.pns",
-    "in_10A/3h84_10A.pns",
-    "in_10A/3gl1_10A.pns",
-    "in_10A/3d2f_10A.pns",
-    "in_10A/3cf3_10A.pns",
-    "in_10A/2cg9_10A.pns",
-    "in_10A/1u6g_10A.pns",
-    "in_10A/1s3x_10A.pns",
-    "in_10A/1qvr_10A.pns",
-    "in_10A/1bxn_10A.pns",
-]
-# Membrane proteins
-MB_PROTEINS_LIST = [
-    "in_10A/mb_6rd4_10A.pms",
-    "in_10A/mb_5wek_10A.pms",
-    "in_10A/mb_4pe5_10A.pms",
-    "in_10A/mb_5ide_10A.pms",
-    "in_10A/mb_5gjv_10A.pms",
-    "in_10A/mb_5kxi_10A.pms",
-    "in_10A/mb_5tj6_10A.pms",
-    "in_10A/mb_5tqq_10A.pms",
-    "in_10A/mb_5vai_10A.pms",
-]
-MB_PROTEINS_LIST_NEW = [
-    "in_10A/mb_7tmr_10A.pms",
-    "in_10A/mb_1l4a_10A.pms",
-    "in_10A/mb_7udb_10A.pms",
-    "in_10A/mb_8sbe_10A.pms",
-    "in_10A/mb_9brz_10A.pms",
-    "in_10A/mb_VMAT_10A.pms",
-    "in_10A/mb_VGLUT_10A.pms",
-    "in_10A/mb_Synaptotagmin_10A.pms",
-    "in_10A/mb_Synaptophysin_10A.pms",
-    "in_10A/mb_rab3_10A.pms",
-]
-# New proteins list
-NEW_PROTEINS_LIST = [
-    "in_10A/6drv_10A.pns",
-    "in_10A/6n4v_10A.pns",
-    "in_10A/6qzp_10A.pns",
-    "in_10A/7n4y_10A.pns",
-    "in_10A/8cpv_10A.pns",
-    "in_10A/8vaf_10A.pns",
-    "in_10A/1fa2_10A.pns"]
-
-PROP_LIST_RAW= np.array([5, 6, 6, 80 ,13,47 ,1])
-
-new_proteins = False
-only_new_proteins = False
-no_cytosolic_proteins = True
-not_use_membrane_proteins = False
-use_new_membrane_proteins_only = True
-
-if new_proteins:
-    PROTEINS_LIST += NEW_PROTEINS_LIST
-if only_new_proteins:
-    PROTEINS_LIST = NEW_PROTEINS_LIST
-if no_cytosolic_proteins:
-    PROTEINS_LIST = []
-if use_new_membrane_proteins_only:
-    MB_PROTEINS_LIST = MB_PROTEINS_LIST_NEW
-if not_use_membrane_proteins:
-    MB_PROTEINS_LIST = []
-# Proportions list, specifies the proportion for each protein, this proportion is tried to be achieved but no guaranteed
-# The toal sum of this list must be 1
-PROP_LIST_Flag = False # True # False
-
- # [.4, .6]
-if  PROP_LIST_Flag:
-    PROP_LIST = PROP_LIST_RAW / np.sum(PROP_LIST_RAW)  
-else:
-    PROP_LIST = None
-
-if PROP_LIST is not None:
-    assert sum(PROP_LIST) == 1
-
-SURF_DEC = 0.9  # Target reduction factor for surface decimation (default None)
-
-# Reconstruction tomograms
-TILT_ANGS = np.arange(
-    -60, 60, 3
-)  # range(-90, 91, 3) # at MPI-B IMOD only works for ranges
-DETECTOR_SNR = [1.0, 2.0]  # 0.2 # [.15, .25]
-MALIGN_MN = 1
-MALIGN_MX = 1.5
-MALIGN_SG = 0.2
-
-# OUTPUT FILES
-"""OUT_DIR = os.path.realpath(
-    ROOT_PATH + "/data_generated/all_v11"
-)  # '/out_all_tomos_9-10' # '/only_actin' # '/out_rotations'"""
-
-
-os.makedirs(OUT_DIR, exist_ok=True)
-
-TEM_DIR = OUT_DIR + "/tem"
-TOMOS_DIR = OUT_DIR + "/tomos"
-os.makedirs(TOMOS_DIR, exist_ok=True)
-os.makedirs(TEM_DIR, exist_ok=True)
-
-# OUTPUT LABELS
-LBL_MB = 1
-LBL_AC = 2
-LBL_MT = 3
-LBL_CP = 4
-LBL_MP = 5
-# LBL_BR = 6
-
-if "--print-parameters" in sys.argv:
-    print("=== Initial Parameters and Settings ===")
-    print("ROOT_PATH:", ROOT_PATH)
-    print("ROOT_PATH_ACTIN:", ROOT_PATH_ACTIN)
-    print("ROOT_PATH_MEMBRANE:", ROOT_PATH_MEMBRANE)
-    print("NTOMOS:", NTOMOS)
-    print("VOI_SHAPE:", VOI_SHAPE)
-    print("VOI_OFFS:", VOI_OFFS)
-    print("VOI_VSIZE:", VOI_VSIZE)
-    print("MMER_TRIES:", MMER_TRIES)
-    print("PMER_TRIES:", PMER_TRIES)
-    print("czII_challenge_shape", czII_challenge_shape)
-    print("not_use_membranes:", not_use_membrane_proteins)
-    print("new_proteins:", new_proteins)
-    print("only_new_proteins:", only_new_proteins)
-    print("\n--- Feature Lists ---")
-    print("MEMBRANES_LIST:", MEMBRANES_LIST)
-    print("HELIX_LIST:", HELIX_LIST)
-    print("PROTEINS_LIST:", PROTEINS_LIST)
-    print("NEW_PROTEINS_LIST:", NEW_PROTEINS_LIST)
-    print("MB_PROTEINS_LIST:", MB_PROTEINS_LIST)
-    print("PROP_LIST:", PROP_LIST)
-    print("PROP_LIST_Flag:", PROP_LIST_Flag)
-    print("SURF_DEC:", SURF_DEC)
-    print("\n--- Reconstruction Settings ---")
-    print("TILT_ANGS:", TILT_ANGS)
-    print("DETECTOR_SNR:", DETECTOR_SNR)
-    print("MALIGN_MN:", MALIGN_MN)
-    print("MALIGN_MX:", MALIGN_MX)
-    print("MALIGN_SG:", MALIGN_SG)
-    print("\n--- Output Directories ---")
-    print("OUT_DIR:", OUT_DIR)
-    print("TEM_DIR:", TEM_DIR)
-    print("TOMOS_DIR:", TOMOS_DIR)
-    print("error_log_path:", error_log_path)
-    print("log_path:", log_path)
-    print("=== End of Parameters ===")
-    sys.stdout.flush()  # Ensure output is written
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description='Generate synthetic tomograms with various features')
     
-##### Functions
-import os
-import tarfile
-import shutil
+    # Path arguments
+    parser.add_argument('--root_path', default="/mnt/lustre-grete/usr/u15206/polnet/data_new_1",
+                       help='Root path for protein data')
+    parser.add_argument('--root_path_actin', default="/mnt/lustre-grete/usr/u15206/polnet_data/data",
+                       help='Root path for actin data')
+    parser.add_argument('--root_path_membrane', default="/mnt/lustre-grete/usr/u15206/polnet_data/data",
+                       help='Root path for membrane data')
+    parser.add_argument('--root_path_mb', default="/mnt/lustre-grete/usr/u15206/polnet_data/data",
+                       help='Root path for membrane protein data')
+    parser.add_argument('--out_dir', default="/scratch-grete/projects/nim00007/cryo-et/synthetic_synaptic_data/simulation_dir_1/all_v0",
+                       help='Output directory')
+    
+    # Tomogram generation parameters
+    parser.add_argument('--ntomos', type=int, default=10, help='Number of tomograms to generate')
+    parser.add_argument('--voi_shape', type=int, nargs=3, default=(630, 630, 184),
+                       help='VOI shape as three integers (x, y, z)')
+    parser.add_argument('--voi_offs', type=int, nargs=6, default=(4, 996, 4, 996, 4, 246),
+                       help='VOI offsets as six integers (x_min, x_max, y_min, y_max, z_min, z_max)')
+    parser.add_argument('--voi_vsize', type=float, default=10.0, help='Voxel size in Angstroms')
+    parser.add_argument('--mmer_tries', type=int, default=10, help='Number of monomer placement tries')
+    parser.add_argument('--pmer_tries', type=int, default=1000, help='Number of polymer placement tries')
+    
+    # Feature selection
+    parser.add_argument('--no_membranes', action='store_true', help='Disable membrane simulation')
+    parser.add_argument('--no_helices', action='store_true', help='Disable helix simulation')
+    parser.add_argument('--no_proteins', action='store_true', help='Disable protein simulation')
+    parser.add_argument('--no_mb_proteins', action='store_true', help='Disable membrane protein simulation')
+    parser.add_argument('--use_new_proteins', action='store_true', help='Use new protein list')
+    parser.add_argument('--only_new_proteins', action='store_true', help='Use only new proteins')
+    parser.add_argument('--use_new_mb_proteins', action='store_true', help='Use new membrane proteins only')
+    
+    # Reconstruction parameters
+    parser.add_argument('--tilt_angs', type=float, nargs='+', default=np.arange(-60, 60, 3).tolist(),
+                       help='Tilt angles for reconstruction')
+    parser.add_argument('--detector_snr', type=float, nargs=2, default=[1.0, 2.0],
+                       help='Detector SNR range')
+    parser.add_argument('--malign_mn', type=float, default=1.0, help='Misalignment mean')
+    parser.add_argument('--malign_mx', type=float, default=1.5, help='Misalignment max')
+    parser.add_argument('--malign_sg', type=float, default=0.2, help='Misalignment sigma')
+    
+    # Advanced parameters
+    parser.add_argument('--surf_dec', type=float, default=0.9, help='Surface decimation factor')
+    parser.add_argument('--use_proportions', action='store_true', help='Use protein proportions')
+    parser.add_argument('--prop_list', type=float, nargs='+', default=[5, 6, 6, 80, 13, 47, 1],
+                       help='Protein proportions list')
+    parser.add_argument('--no_logging', action='store_true', help='Disable logging')
+    parser.add_argument('--print_parameters', action='store_true', help='Print parameters and exit')
+    
+    return parser.parse_args()
+
+def get_feature_lists(args):
+    """Get the lists of features based on arguments"""
+    # Default lists
+    MEMBRANES_LIST = [
+        "in_mbs/ellipse.mbs",
+    ]
+
+    HELIX_LIST = ["in_helix/mt.hns", "in_helix/actin.hns"]
+
+    PROTEINS_LIST = [
+        "in_10A/4v4r_10A.pns",
+        "in_10A/3j9i_10A.pns",
+        "in_10A/4v4r_50S_10A.pns",
+        "in_10A/4v4r_30S_10A.pns",
+        "in_10A/6utj_10A.pns",
+        "in_10A/5mrc_10A.pns",
+        "in_10A/4v7r_10A.pns",
+        "in_10A/2uv8_10A.pns",
+        "in_10A/4v94_10A.pns",
+        "in_10A/4cr2_10A.pns",
+        "in_10A/3qm1_10A.pns",
+        "in_10A/3h84_10A.pns",
+        "in_10A/3gl1_10A.pns",
+        "in_10A/3d2f_10A.pns",
+        "in_10A/3cf3_10A.pns",
+        "in_10A/2cg9_10A.pns",
+        "in_10A/1u6g_10A.pns",
+        "in_10A/1s3x_10A.pns",
+        "in_10A/1qvr_10A.pns",
+        "in_10A/1bxn_10A.pns",
+    ]
+    
+    MB_PROTEINS_LIST = [
+        "in_10A/mb_6rd4_10A.pms",
+        "in_10A/mb_5wek_10A.pms",
+        "in_10A/mb_4pe5_10A.pms",
+        "in_10A/mb_5ide_10A.pms",
+        "in_10A/mb_5gjv_10A.pms",
+        "in_10A/mb_5kxi_10A.pms",
+        "in_10A/mb_5tj6_10A.pms",
+        "in_10A/mb_5tqq_10A.pms",
+        "in_10A/mb_5vai_10A.pms",
+    ]
+    
+    MB_PROTEINS_LIST_NEW = [
+        "in_10A/mb_7tmr_10A.pms",
+        "in_10A/mb_1l4a_10A.pms",
+        "in_10A/mb_7udb_10A.pms",
+        "in_10A/mb_8sbe_10A.pms",
+        "in_10A/mb_9brz_10A.pms",
+        "in_10A/mb_VMAT_10A.pms",
+        "in_10A/mb_VGLUT_10A.pms",
+        "in_10A/mb_Synaptotagmin_10A.pms",
+        "in_10A/mb_Synaptophysin_10A.pms",
+        "in_10A/mb_rab3_10A.pms",
+    ]
+    
+    NEW_PROTEINS_LIST = [
+        "in_10A/6drv_10A.pns",
+        "in_10A/6n4v_10A.pns",
+        "in_10A/6qzp_10A.pns",
+        "in_10A/7n4y_10A.pns",
+        "in_10A/8cpv_10A.pns",
+        "in_10A/8vaf_10A.pns",
+        "in_10A/1fa2_10A.pns"
+    ]
+
+    # Apply feature selection
+    if args.no_membranes:
+        MEMBRANES_LIST = []
+    
+    if args.no_helices:
+        HELIX_LIST = []
+    
+    if args.no_proteins:
+        PROTEINS_LIST = []
+    else:
+        if args.use_new_proteins:
+            PROTEINS_LIST += NEW_PROTEINS_LIST
+        if args.only_new_proteins:
+            PROTEINS_LIST = NEW_PROTEINS_LIST
+    
+    if args.no_mb_proteins:
+        MB_PROTEINS_LIST = []
+    elif args.use_new_mb_proteins:
+        MB_PROTEINS_LIST = MB_PROTEINS_LIST_NEW
+
+    return MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST
+
+def get_proportion_list(args, proteins_list):
+    """Get the proportion list for proteins"""
+    if args.use_proportions and args.prop_list:
+        prop_list_raw = np.array(args.prop_list)
+        # Extend proportions if needed
+        if len(prop_list_raw) < len(proteins_list):
+            # Repeat the last proportion for additional proteins
+            last_val = prop_list_raw[-1]
+            prop_list_raw = np.append(prop_list_raw, [last_val] * (len(proteins_list) - len(prop_list_raw)))
+        elif len(prop_list_raw) > len(proteins_list):
+            # Truncate if too many proportions
+            prop_list_raw = prop_list_raw[:len(proteins_list)]
+        
+        prop_list = prop_list_raw / np.sum(prop_list_raw)
+        return prop_list
+    return None
+
+def print_parameters(args, membranes_list, helix_list, proteins_list, mb_proteins_list, prop_list):
+    """Print all parameters for verification"""
+    print("=== Initial Parameters and Settings ===")
+    print("ROOT_PATH:", args.root_path)
+    print("ROOT_PATH_ACTIN:", args.root_path_actin)
+    print("ROOT_PATH_MEMBRANE:", args.root_path_membrane)
+    print("ROOT_PATH_MB:", args.root_path_mb)
+    print("NTOMOS:", args.ntomos)
+    print("VOI_SHAPE:", args.voi_shape)
+    print("VOI_OFFS:", args.voi_offs)
+    print("VOI_VSIZE:", args.voi_vsize)
+    print("MMER_TRIES:", args.mmer_tries)
+    print("PMER_TRIES:", args.pmer_tries)
+    
+    print("\n--- Feature Lists ---")
+    print("MEMBRANES_LIST:", membranes_list)
+    print("HELIX_LIST:", helix_list)
+    print("PROTEINS_LIST:", proteins_list)
+    print("MB_PROTEINS_LIST:", mb_proteins_list)
+    print("PROP_LIST:", prop_list)
+    print("PROP_LIST_Flag:", args.use_proportions)
+    
+    print("\n--- Feature Selection ---")
+    print("no_membranes:", args.no_membranes)
+    print("no_helices:", args.no_helices)
+    print("no_proteins:", args.no_proteins)
+    print("no_mb_proteins:", args.no_mb_proteins)
+    print("use_new_proteins:", args.use_new_proteins)
+    print("only_new_proteins:", args.only_new_proteins)
+    print("use_new_mb_proteins:", args.use_new_mb_proteins)
+    
+    print("\n--- Reconstruction Settings ---")
+    print("TILT_ANGS:", args.tilt_angs)
+    print("DETECTOR_SNR:", args.detector_snr)
+    print("MALIGN_MN:", args.malign_mn)
+    print("MALIGN_MX:", args.malign_mx)
+    print("MALIGN_SG:", args.malign_sg)
+    
+    print("\n--- Advanced Parameters ---")
+    print("SURF_DEC:", args.surf_dec)
+    print("USE_LOGGING:", not args.no_logging)
+    
+    print("\n--- Output Directories ---")
+    print("OUT_DIR:", args.out_dir)
+    print("=== End of Parameters ===")
+    sys.stdout.flush()
 
 def save_input_files(root_path, output_file, exclude_dirs=None, as_archive=True):
     """
     Save all files from the ROOT_PATH either into a compressed archive (.tar.gz)
     or into a normal directory copy, excluding specified directories.
-
-    :param root_path: The root directory containing the input files.
-    :param output_file: The path to the output archive file (if as_archive=True)
-                        or the output directory name (if as_archive=False).
-    :param exclude_dirs: A list of directory names to exclude (e.g., ["templates"]).
-    :param as_archive: If True, create a .tar.gz archive. If False, copy to a folder.
     """
     exclude_dirs = exclude_dirs or []
 
     if as_archive:
-        # Save as compressed tar.gz
         if not output_file.endswith(".tar.gz"):
             output_file += ".tar.gz"
         with tarfile.open(output_file, "w:gz") as tar:
             for dirpath, dirnames, filenames in os.walk(root_path):
-                # Exclude specified directories
                 dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
                 for filename in filenames:
                     file_path = os.path.join(dirpath, filename)
@@ -356,13 +342,11 @@ def save_input_files(root_path, output_file, exclude_dirs=None, as_archive=True)
                     tar.add(file_path, arcname=arcname)
         print(f"Input files archived to {output_file}")
     else:
-        # Save as normal directory copy
         if os.path.exists(output_file):
-            shutil.rmtree(output_file)  # clean if exists
+            shutil.rmtree(output_file)
         os.makedirs(output_file, exist_ok=True)
 
         for dirpath, dirnames, filenames in os.walk(root_path):
-            # Exclude specified directories
             dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
             rel_dir = os.path.relpath(dirpath, root_path)
             target_dir = os.path.join(output_file, rel_dir)
@@ -375,63 +359,42 @@ def save_input_files(root_path, output_file, exclude_dirs=None, as_archive=True)
 
         print(f"Input files copied to directory {output_file}")
 
-
 def display_sample_files_with_content(root_path, exclude_dirs=None, specific_files=None):
-    """
-    Display one file from each subdirectory in the root path and print its content, prioritizing specific files.
-
-    :param root_path: The root directory to search.
-    :param exclude_dirs: A list of directory names to exclude (e.g., ["templates"]).
-    :param specific_files: A dictionary where keys are directories and values are specific filenames to display.
-    """
+    """Display sample files and their content"""
     exclude_dirs = exclude_dirs or []
     specific_files = specific_files or {}
     print("Sample files and their content from each directory:")
     for dirpath, dirnames, filenames in os.walk(root_path):
-        # Exclude specified directories
         dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
-        # Exclude hidden files (e.g., .DS_Store)
         filenames = [f for f in filenames if not f.startswith(".")]
         if filenames:
-            # Check if a specific file is requested for this directory
             relative_dir = os.path.relpath(dirpath, root_path)
             if relative_dir in specific_files and specific_files[relative_dir] in filenames:
                 sample_file = os.path.join(dirpath, specific_files[relative_dir])
             else:
-                # Default to the first file in the directory
                 sample_file = os.path.join(dirpath, filenames[0])
             
             print(f"\nFile: {sample_file}")
-            # Display the content of the file
             try:
                 with open(sample_file, "r") as f:
                     content = f.read()
                     print("Content:")
-                    print(content[:500])  # Print the first 500 characters to avoid excessive output
+                    print(content[:500])
             except (UnicodeDecodeError, IsADirectoryError, FileNotFoundError) as e:
                 print(f"Could not read file {sample_file}: {e}")
 
 def display_statistics_from_csv(csv_file):
-    """
-    Reads the tomos_motif_list.csv file and displays statistics.
-
-    :param csv_file: Path to the CSV file containing tomogram data.
-    """
+    """Display statistics from CSV file"""
     try:
-        # Read the CSV file into a DataFrame
         df = pd.read_csv(csv_file, delimiter="\t")
-        
-        # Display general information
         print("\n=== Statistics from tomos_motif_list.csv ===")
         print(f"Total number of particles: {len(df)}")
         
-        # Example statistics: Count occurrences of each motif type
         if "Code" in df.columns:
             motif_counts = df["Code"].value_counts()
             print("\nMotif counts:")
             print(motif_counts)
         
-        # Example statistics: Count occurrences of each label
         if "Label" in df.columns:
             label_counts = df["Label"].value_counts()
             print("\nLabel counts:")
@@ -440,28 +403,6 @@ def display_statistics_from_csv(csv_file):
         print("\n=== End of Statistics ===")
     except Exception as e:
         print(f"Error reading or processing the CSV file: {e}")
-
-######preview the input files
-# Display one file from each directory and its content, excluding "templates"
-# Display one file from each directory and its content, prioritizing specific files
-specific_files = {
-    "in_10A": "6qzp_10A.pns",  # Specify the file to display for the in_10A directory
-}
-display_sample_files_with_content(ROOT_PATH, exclude_dirs=["templates","in_mbs","in_helix"], specific_files=specific_files)
-display_sample_files_with_content(ROOT_PATH_ACTIN, exclude_dirs=["templates","in_10A"],specific_files=specific_files)
-display_sample_files_with_content(ROOT_PATH_MB, exclude_dirs=["templates","in_10A"],specific_files=specific_files)
-# define the output archive path
-OUTPUT_ARCHIVE = os.path.join(OUT_DIR, "input_files.tar.gz")
-OUTPUT_ARCHIVE_ACTIN = os.path.join(OUT_DIR, "input_files_mb_actin.tar.gz")
-OUTPUT_ARCHIVE_MB = os.path.join(OUT_DIR, "input_files_inmbs_in10A")
-
-# Save all files except those in the "templates" directory
-#save_input_files(ROOT_PATH, OUTPUT_ARCHIVE, exclude_dirs=["templates","in_mbs","in_helix"])
-#save_input_files(ROOT_PATH_ACTIN, OUTPUT_ARCHIVE_ACTIN, exclude_dirs=["templates","in_10A"])
-save_input_files(ROOT_PATH_MB,OUTPUT_ARCHIVE_MB,exclude_dirs=["templates","in_5A"],as_archive=False)
-
-
-##### Main procedure
 
 def generate_tomogram(tomod_id, global_params):
     """
@@ -510,11 +451,8 @@ def generate_tomogram(tomod_id, global_params):
 
     # Membranes loop
     count_mbs, hold_den = 0, None
-    MAX_MEMBRANES = 200
     for p_id, p_file in enumerate(MEMBRANES_LIST):
-        if count_mbs >= MAX_MEMBRANES:
-            print(f"Reached maximum number of membranes ({MAX_MEMBRANES}), stopping membrane simulation.")
-            break
+
         print(f"\tPROCESSING FILE: {p_file}")
 
         # Loading the membrane file
@@ -527,17 +465,12 @@ def generate_tomogram(tomod_id, global_params):
             hold_occ = OccGen(hold_occ).gen_occupancy()
 
         # Membrane random generation by type
-        """param_rg = (
+        param_rg = (
             memb.get_min_rad(),
             math.sqrt(3) * max(VOI_SHAPE) * VOI_VSIZE,
             memb.get_max_ecc(),
-        )"""
-        param_rg = (
-            200,  # min radius
-            250,  # max radius
-            memb.get_max_ecc(),
         )
-
+        
         if memb.get_type() == "sphere":
             mb_sph_generator = SphGen(radius_rg=(param_rg[0], param_rg[1]))
             set_mbs = SetMembranes(
@@ -1024,76 +957,93 @@ def generate_tomogram(tomod_id, global_params):
 
     return synth_tomo
 
-# Prepare global parameters to pass to each process
-global_params = (
-    ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, ROOT_PATH_MB,
-    VOI_SHAPE, VOI_OFFS, VOI_VSIZE, MMER_TRIES, PMER_TRIES,
-    MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-    PROP_LIST, SURF_DEC, TOMOS_DIR, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP
-)
-
-# Create output directories
-clean_dir(TEM_DIR)
-clean_dir(TOMOS_DIR)
-
-# Save labels table
-unit_lbl = 1
-header_lbl_tab = ["MODEL", "LABEL"]
-with open(OUT_DIR + "/labels_table.csv", "w") as file_csv:
-    writer_csv = csv.DictWriter(
-        file_csv, fieldnames=header_lbl_tab, delimiter="\t"
-    )
-    writer_csv.writeheader()
-    for i in range(len(MEMBRANES_LIST)):
-        writer_csv.writerow(
-            {header_lbl_tab[0]: MEMBRANES_LIST[i], header_lbl_tab[1]: unit_lbl}
-        )
-        unit_lbl += 1
-    for i in range(len(HELIX_LIST)):
-        writer_csv.writerow(
-            {header_lbl_tab[0]: HELIX_LIST[i], header_lbl_tab[1]: unit_lbl}
-        )
-        unit_lbl += 1
-    for i in range(len(PROTEINS_LIST)):
-        writer_csv.writerow(
-            {header_lbl_tab[0]: PROTEINS_LIST[i], header_lbl_tab[1]: unit_lbl}
-        )
-        unit_lbl += 1
-    for i in range(len(MB_PROTEINS_LIST)):
-        writer_csv.writerow(
-            {
-                header_lbl_tab[0]: MB_PROTEINS_LIST[i],
-                header_lbl_tab[1]: unit_lbl,
-            }
-        )
-        unit_lbl += 1
-
-# Use multiprocessing to generate tomograms in parallel
-if __name__ == "__main__":
-    # Determine number of processes to use (use all available CPU cores)
-    num_processes = mp.cpu_count()
-    print(f"Using {num_processes} processes for parallel tomogram generation")
+def main():
+    """Main function"""
+    # Parse arguments
+    args = parse_arguments()
     
-    # Create a pool of workers
-    with mp.Pool(processes=num_processes) as pool:
-        # Generate tomograms in parallel
+    # Setup logging
+    setup_logging(args.out_dir, not args.no_logging)
+    
+    # Get feature lists based on arguments
+    MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST = get_feature_lists(args)
+    
+    # Get proportion list
+    PROP_LIST = get_proportion_list(args, PROTEINS_LIST)
+    
+    # Convert VOI_OFFS to tuple format
+    VOI_OFFS = (
+        (args.voi_offs[0], args.voi_offs[1]),
+        (args.voi_offs[2], args.voi_offs[3]),
+        (args.voi_offs[4], args.voi_offs[5]),
+    )
+    
+    # Print parameters if requested
+    if args.print_parameters:
+        print_parameters(args, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST, PROP_LIST)
+        return
+    
+    # Create output directories
+    TOMOS_DIR = os.path.join(args.out_dir, "tomos")
+    TEM_DIR = os.path.join(args.out_dir, "tem")
+    os.makedirs(TOMOS_DIR, exist_ok=True)
+    os.makedirs(TEM_DIR, exist_ok=True)
+    
+    # Labels
+    LBL_MB = 1
+    LBL_AC = 2
+    LBL_MT = 3
+    LBL_CP = 4
+    LBL_MP = 5
+    
+    # Prepare global parameters
+    global_params = (
+        args.root_path, args.root_path_actin, args.root_path_membrane, args.root_path_mb,
+        tuple(args.voi_shape), VOI_OFFS, args.voi_vsize, args.mmer_tries, args.pmer_tries,
+        MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
+        PROP_LIST, args.surf_dec, TOMOS_DIR, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP
+    )
+    
+    # Save labels table
+    unit_lbl = 1
+    header_lbl_tab = ["MODEL", "LABEL"]
+    with open(os.path.join(args.out_dir, "labels_table.csv"), "w") as file_csv:
+        writer_csv = csv.DictWriter(file_csv, fieldnames=header_lbl_tab, delimiter="\t")
+        writer_csv.writeheader()
+        for i in range(len(MEMBRANES_LIST)):
+            writer_csv.writerow({header_lbl_tab[0]: MEMBRANES_LIST[i], header_lbl_tab[1]: unit_lbl})
+            unit_lbl += 1
+        for i in range(len(HELIX_LIST)):
+            writer_csv.writerow({header_lbl_tab[0]: HELIX_LIST[i], header_lbl_tab[1]: unit_lbl})
+            unit_lbl += 1
+        for i in range(len(PROTEINS_LIST)):
+            writer_csv.writerow({header_lbl_tab[0]: PROTEINS_LIST[i], header_lbl_tab[1]: unit_lbl})
+            unit_lbl += 1
+        for i in range(len(MB_PROTEINS_LIST)):
+            writer_csv.writerow({header_lbl_tab[0]: MB_PROTEINS_LIST[i], header_lbl_tab[1]: unit_lbl})
+            unit_lbl += 1
+
+    # Use multiprocessing to generate tomograms in parallel
+    print(f"Using {mp.cpu_count()} processes for parallel tomogram generation")
+    
+    with mp.Pool(processes=mp.cpu_count()) as pool:
         results = list(tqdm(
-            pool.imap(partial(generate_tomogram, global_params=global_params), range(NTOMOS)),
-            total=NTOMOS,
+            pool.imap(partial(generate_tomogram, global_params=global_params), range(args.ntomos)),
+            total=args.ntomos,
             desc="Generating tomograms in parallel"
         ))
     
-    # Collect results from all processes
+    # Collect results
     set_stomos = SetTomos()
     for result in results:
         set_stomos.add_tomos(result)
 
-    ##Storing tomograms CSV file
-    set_stomos.save_csv(OUT_DIR + "/tomos_motif_list.csv")
-    # Path to the CSV file
-    csv_file_path = os.path.join(OUT_DIR, "tomos_motif_list.csv")
-
-    # Display statistics from the CSV file
+    # Save results
+    csv_file_path = os.path.join(args.out_dir, "tomos_motif_list.csv")
+    set_stomos.save_csv(csv_file_path)
     display_statistics_from_csv(csv_file_path)
 
     print("Successfully terminated. (" + time.strftime("%c") + ")")
+
+if __name__ == "__main__":
+    main()
