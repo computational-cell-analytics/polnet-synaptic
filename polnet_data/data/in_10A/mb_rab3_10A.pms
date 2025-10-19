@@ -1,5 +1,5 @@
 MMER_ID = rab_3_a
-MMER_SVOL = /mnt/lustre-grete/usr/u15206/polnet_data/mbz_align_shifts_unsimulated_1/rab3_A_AF-A0A091CXJ2-F1-model_v4_mbz_align_shift.mrc
+MMER_SVOL =/mbz_align_shifts_unsimulated_1/rab3_A_AF-A0A091CXJ2-F1-model_v4_mbz_align_shift.mrc
 MMER_ISO = 0.046
 PMER_L = 1.2
 PMER_L_MAX = 3000.0
