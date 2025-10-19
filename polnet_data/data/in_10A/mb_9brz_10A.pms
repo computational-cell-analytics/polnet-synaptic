@@ -1,5 +1,5 @@
 MMER_ID = pdb_mb_9brz
-MMER_SVOL = /mnt/lustre-grete/usr/u15206/polnet_data/mbz_align_shifts/9brz_mbz_align_shift.mrc
+MMER_SVOL = /mbz_align_shifts/9brz_mbz_align_shift.mrc
 MMER_ISO = 0.046
 PMER_L = 1.2
 PMER_L_MAX = 3000.0
