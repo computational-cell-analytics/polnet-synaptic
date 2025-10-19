@@ -19,7 +19,7 @@ monomers
         - STAR file mapping particle coordinates and orientations with tomograms
 """
 
-__author__ = "Antonio Martinez-Sanchez"
+__author__ = "Antonio Martinez-Sanchez", "Yusuf Berk Oruc"
 
 import sys
 import csv
@@ -88,7 +88,8 @@ class LoggerWriter:
 # Set up logging
 
 # Define a hard-coded output directory
-OUT_DIR = "/scratch-grete/projects/nim00007/cryo-et/synthetic_synaptic_data/all_v1"
+#OUT_DIR = "/scratch-grete/projects/nim00007/cryo-et/synthetic_synaptic_data/all_v1"
+OUT_DIR = "/scratch-grete/projects/nim00007/cryo-et/synthetic_synaptic_data/simulation_dir_2/all_v1"
 os.makedirs(OUT_DIR, exist_ok=True)
 # Let the log files include the job number (if available)
 LOG_DIR = os.path.join(OUT_DIR, "logs")
@@ -150,8 +151,8 @@ VOI_OFFS = (
     (4, 246),
 )  # ((4,396), (4,396), (4,232)) # ((4,1852), (4,1852), (32,432)) # ((4,1852), (4,1852), (4,232)) # vx
 VOI_VSIZE = 10 #2.2 A/vx
-MMER_TRIES = 10
-PMER_TRIES = 1000
+MMER_TRIES = 1
+PMER_TRIES = 2000
 
 # Lists with the features to simulate
 # Membranes
@@ -509,8 +510,11 @@ def generate_tomogram(tomod_id, global_params):
 
     # Membranes loop
     count_mbs, hold_den = 0, None
+    MAX_MEMBRANES = 200
     for p_id, p_file in enumerate(MEMBRANES_LIST):
-
+        if count_mbs >= MAX_MEMBRANES:
+            print(f"Reached maximum number of membranes ({MAX_MEMBRANES}), stopping membrane simulation.")
+            break
         print(f"\tPROCESSING FILE: {p_file}")
 
         # Loading the membrane file
@@ -523,11 +527,17 @@ def generate_tomogram(tomod_id, global_params):
             hold_occ = OccGen(hold_occ).gen_occupancy()
 
         # Membrane random generation by type
-        param_rg = (
+        """param_rg = (
             memb.get_min_rad(),
             math.sqrt(3) * max(VOI_SHAPE) * VOI_VSIZE,
             memb.get_max_ecc(),
+        )"""
+        param_rg = (
+            200,  # min radius
+            250,  # max radius
+            memb.get_max_ecc(),
         )
+
         if memb.get_type() == "sphere":
             mb_sph_generator = SphGen(radius_rg=(param_rg[0], param_rg[1]))
             set_mbs = SetMembranes(
