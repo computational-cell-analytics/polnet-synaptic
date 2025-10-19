@@ -1,0 +1,8 @@
+MB_TYPE = ellipse
+MB_OCC = (0.005, 0.006)
+MB_THICK_RG = (20, 30) # A
+MB_LAYER_S_RG = (0.5, 1.5) # A
+MB_MAX_ECC = .25
+MB_OVER_TOL = 0
+MB_MIN_RAD = 20
+MB_DEN_CF_RG = (.3, .5)

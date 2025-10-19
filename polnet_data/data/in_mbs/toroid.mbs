@@ -1,0 +1,8 @@
+MB_TYPE = toroid
+MB_OCC = (0.001, 0.002)      # Increase upper bound for more toroids
+MB_THICK_RG = (20, 30)      # Optional: thinner toroids
+MB_LAYER_S_RG = (0.5, 1.5)  # Optional: thinner layers
+MB_MAX_ECC = .75
+MB_OVER_TOL = 0
+MB_MIN_RAD = 10             # Smaller minimum radius
+MB_DEN_CF_RG = (.3, .5)

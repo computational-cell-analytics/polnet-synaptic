@@ -1,0 +1,8 @@
+MMER_ID = vglut
+MMER_SVOL = /mnt/lustre-grete/usr/u15206/polnet_data/mbz_align_shifts_unsimulated_1/VGLUT_AF-Q62634-F1-model_v4_mbz_align_shift.mrc
+MMER_ISO = 0.046
+PMER_L = 1.2
+PMER_L_MAX = 3000.0
+PMER_OCC = 5 # %
+PMER_OVER_TOL = 0.01
+PMER_REVERSE_NORMALS = True
