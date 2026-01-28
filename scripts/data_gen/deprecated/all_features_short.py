@@ -86,7 +86,7 @@ class LoggerWriter:
 # Set up logging
 
 # Define a hard-coded output directory
-OUT_DIR = "/mnt/lustre-emmy-hdd/usr/u15206/simulation_dir/all_v_czii_1"
+OUT_DIR = "out/deepict/run1"
 os.makedirs(OUT_DIR, exist_ok=True)
 # Let the log files include the job number (if available)
 LOG_DIR = os.path.join(OUT_DIR, "logs")
@@ -120,16 +120,15 @@ sys.stderr = LoggerWriter(logger.error)
 ##### Input parameters
 
 # Common tomogram settings
-#ROOT_PATH = os.path.realpath(os.getcwd() + "/../../data")
-ROOT_PATH = "/user/yusufberk.oruc/u15206/polnet/data_new_1"
-ROOT_PATH_ACTIN = "/user/yusufberk.oruc/u15206/polnet/data_new"
-ROOT_PATH_MEMBRANE = "/user/yusufberk.oruc/u15206/polnet/data_new"
+ROOT_PATH = os.path.realpath(os.getcwd() + "/../../data")
+ROOT_PATH_ACTIN = os.path.realpath(os.getcwd() + "/../../data")
+ROOT_PATH_MEMBRANE = os.path.realpath(os.getcwd() + "/../../data")
 
-NTOMOS = 30  # 12
+NTOMOS = 1  # 12
 VOI_SHAPE = (
-    1000,
-    1000,
-    250,
+    630,
+    630,
+    184,
 )  # (1000, 1000, 400) # (400, 400, 236) # vx or a path to a mask (1-foreground, 0-background) tomogram
 czII_challenge_data = True
 if czII_challenge_data:
@@ -139,7 +138,7 @@ VOI_OFFS = (
     (4, 996),
     (4, 246),
 )  # ((4,396), (4,396), (4,232)) # ((4,1852), (4,1852), (32,432)) # ((4,1852), (4,1852), (4,232)) # vx
-VOI_VSIZE = 10  # 2.2 # A/vx
+VOI_VSIZE = 13.8  # 2.2 # A/vx
 MMER_TRIES = 1
 PMER_TRIES = 1000
 
@@ -157,59 +156,59 @@ HELIX_LIST = ["in_helix/mt.hns", "in_helix/actin.hns"]
 # Proteins
 PROTEINS_LIST = [
     "in_10A/4v4r_10A.pns",
-    "in_10A/3j9i_10A.pns",
-    "in_10A/4v4r_50S_10A.pns",
-    "in_10A/4v4r_30S_10A.pns",
-    "in_10A/6utj_10A.pns",
-    "in_10A/5mrc_10A.pns",
-    "in_10A/4v7r_10A.pns",
-    "in_10A/2uv8_10A.pns",
-    "in_10A/4v94_10A.pns",
-    "in_10A/4cr2_10A.pns",
-    "in_10A/3qm1_10A.pns",
-    "in_10A/3h84_10A.pns",
-    "in_10A/3gl1_10A.pns",
-    "in_10A/3d2f_10A.pns",
-    "in_10A/3cf3_10A.pns",
-    "in_10A/2cg9_10A.pns",
-    "in_10A/1u6g_10A.pns",
-    "in_10A/1s3x_10A.pns",
-    "in_10A/1qvr_10A.pns",
-    "in_10A/1bxn_10A.pns",
+#    "in_10A/3j9i_10A.pns",
+#    "in_10A/4v4r_50S_10A.pns",
+#    "in_10A/4v4r_30S_10A.pns",
+#    "in_10A/6utj_10A.pns",
+#    "in_10A/5mrc_10A.pns",
+#    "in_10A/4v7r_10A.pns",
+#    "in_10A/2uv8_10A.pns",
+#    "in_10A/4v94_10A.pns",
+#    "in_10A/4cr2_10A.pns",
+#    "in_10A/3qm1_10A.pns",
+#   "in_10A/3h84_10A.pns",
+#    "in_10A/3gl1_10A.pns",
+#    "in_10A/3d2f_10A.pns",
+#    "in_10A/3cf3_10A.pns",
+#    "in_10A/2cg9_10A.pns",
+#    "in_10A/1u6g_10A.pns",
+#    "in_10A/1s3x_10A.pns",
+#    "in_10A/1qvr_10A.pns",
+#    "in_10A/1bxn_10A.pns",
 ]
 # Membrane proteins
 MB_PROTEINS_LIST = [
-    "in_10A/mb_6rd4_10A.pms",
-    "in_10A/mb_5wek_10A.pms",
-    "in_10A/mb_4pe5_10A.pms",
-    "in_10A/mb_5ide_10A.pms",
-    "in_10A/mb_5gjv_10A.pms",
-    "in_10A/mb_5kxi_10A.pms",
-    "in_10A/mb_5tj6_10A.pms",
-    "in_10A/mb_5tqq_10A.pms",
-    "in_10A/mb_5vai_10A.pms",
+#    "in_10A/mb_6rd4_10A.pms",
+#   "in_10A/mb_5wek_10A.pms",
+#    "in_10A/mb_4pe5_10A.pms",
+#    "in_10A/mb_5ide_10A.pms",
+#    "in_10A/mb_5gjv_10A.pms",
+#    "in_10A/mb_5kxi_10A.pms",
+#    "in_10A/mb_5tj6_10A.pms",
+#    "in_10A/mb_5tqq_10A.pms",
+#    "in_10A/mb_5vai_10A.pms",
 ]
 # New proteins list
 NEW_PROTEINS_LIST = [
-    "in_10A/6drv_10A.pns",
-    "in_10A/6n4v_10A.pns",
-    "in_10A/6qzp_10A.pns",
-    "in_10A/7n4y_10A.pns",
-    "in_10A/8cpv_10A.pns",
-    "in_10A/8vaf_10A.pns",
-    "in_10A/1fa2_10A.pns"]
+#    "in_10A/6drv_10A.pns",
+#    "in_10A/6n4v_10A.pns",
+#    "in_10A/6qzp_10A.pns",
+#   "in_10A/7n4y_10A.pns",
+#    "in_10A/8cpv_10A.pns",
+#    "in_10A/8vaf_10A.pns",
+#    "in_10A/1fa2_10A.pns"
+]
 
 PROP_LIST_RAW= np.array([5, 6, 6, 80 ,13,47 ,1])
 
 new_proteins = False
-only_new_proteins = True
+only_new_proteins = False
 not_use_membrane_proteins = True
 
 if new_proteins:
     PROTEINS_LIST += NEW_PROTEINS_LIST
 if only_new_proteins:
     PROTEINS_LIST = NEW_PROTEINS_LIST
-    # PROTEINS_LIST = NEW_PROTEINS_LIST
 if not_use_membrane_proteins:
     MB_PROTEINS_LIST = []
 # Proportions list, specifies the proportion for each protein, this proportion is tried to be achieved but no guaranteed
@@ -229,7 +228,7 @@ SURF_DEC = 0.9  # Target reduction factor for surface decimation (default None)
 
 # Reconstruction tomograms
 TILT_ANGS = np.arange(
-    -60, 60, 3
+    -60, 61, 2
 )  # range(-90, 91, 3) # at MPI-B IMOD only works for ranges
 DETECTOR_SNR = [1.0, 2.0]  # 0.2 # [.15, .25]
 MALIGN_MN = 1
