@@ -256,6 +256,10 @@ def parse_args():
                         help="Raw proportions list for proteins.")
     parser.add_argument("--surf_dec", type=float, default=0.9,
                         help="Target reduction factor for surface decimation.")
+    parser.add_argument("--mt_pmer_occ", type=float, default=False,
+                        help="Microtubule polymer occupany.")
+    parser.add_argument("--actin_pmer_occ", type=float, default=False,
+                        help="Actin polymer occupancy.")
     
     # Reconstruction settings
     parser.add_argument("--tilt_angs", type=int, nargs="+", default=list(range(-60, 61, 2)),
@@ -267,11 +271,6 @@ def parse_args():
     parser.add_argument("--malign_sg", type=float, default=0.2, help="Standard deviation for misalignment.")
     
     return parser.parse_args()
-
-
-
-
-
 
 def main():
     args = parse_args()
@@ -299,6 +298,8 @@ def main():
     PROP_LIST_RAW = np.array(args.prop_list_raw)
     PROP_LIST_Flag = args.prop_list_flag
     SURF_DEC = args.surf_dec
+    MT_PMER_OCC = args.mt_pmer_occ
+    ACTIN_PMER_OCC = args.actin_pmer_occ
     TILT_ANGS = args.tilt_angs
     DETECTOR_SNR = args.detector_snr
     MALIGN_MN = args.malign_mn
@@ -590,12 +591,20 @@ def main():
             helix = HelixFile()
             helix.load_hx_file(ROOT_PATH_ACTIN + "/" + p_file)
             
-            # Generating the occupancy
-            hold_occ = helix.get_occ()
+            # Generating the occupancy, with option to override with CLI input
+            if helix.get_type() == "mt" and MT_PMER_OCC is not None:
+                hold_occ = MT_PMER_OCC
+
+            elif helix.get_type() == "actin" and ACTIN_PMER_OCC is not None:
+                hold_occ = ACTIN_PMER_OCC
+            
+            else: 
+                hold_occ = helix.get_occ()
+                if hasattr(hold_occ, "__len__"):
+                    hold_occ = OccGen(hold_occ).gen_occupancy()
+
             print(f"{p_id} protein_occupancy is {hold_occ}.")
 
-            if hasattr(hold_occ, "__len__"):
-                hold_occ = OccGen(hold_occ).gen_occupancy()
 
             # Helicoida random generation by type
             if helix.get_type() == "mt":
@@ -743,9 +752,11 @@ def main():
 
             # Generating the occupancy
             hold_occ = protein.get_pmer_occ()
-            print(f"{p_id} protein_occupancy is {hold_occ}")
+
+            # TODO parameter actin + MT actin occ
             if hasattr(hold_occ, "__len__"):
                 hold_occ = OccGen(hold_occ).gen_occupancy()
+                print(f"{p_id} protein_occupancy is {hold_occ}")
 
             # Genrate the SAWLC network associated to the input protein
             # Polymer parameters
