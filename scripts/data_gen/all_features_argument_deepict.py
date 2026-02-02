@@ -64,7 +64,7 @@ from tqdm import tqdm
 import pandas as pd
 import os
 import logging
-import argparse
+import configargparse
 
 class LoggerWriter:
     def __init__(self, level):
@@ -168,8 +168,13 @@ def display_statistics_from_csv(csv_file):
         print(f"Error reading or processing the CSV file: {e}")
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Generate tomograms simulating all features.")
-    
+    parser = configargparse.ArgParser(
+        config_file_parser_class=configargparse.TomlConfigParser(["tool.polnet"])
+    )
+    # input configuration file (TOML)
+    parser.add_argument("--config", type=str, default=None, is_config_file_arg=True,
+                        help="Path to TOML configuration file.")
+
     # Logging and output directories
     parser.add_argument("--out_dir", type=str, default=None,
                         help="Output directory for generated tomograms.")
@@ -257,24 +262,24 @@ def parse_args():
     parser.add_argument("--surf_dec", type=float, default=0.9,
                         help="Target reduction factor for surface decimation.")
     parser.add_argument("--mt_pmer_occ", type=float, default=False,
-                        help="Microtubule polymer occupany.")
+                        help="Microtubule polymer occupany. If not provided, defaults to value specified in in_helix/mt.hns")
     parser.add_argument("--actin_pmer_occ", type=float, default=False,
-                        help="Actin polymer occupancy.")
+                        help="Actin polymer occupancy. If not provided, defaults to value specified in in_helix/actin.hns")
     
-    # Reconstruction settings
-    parser.add_argument("--tilt_angs", type=int, nargs="+", default=list(range(-60, 61, 2)),
-                        help="Tilt angles for 3D reconstruction.")
-    parser.add_argument("--detector_snr", type=float, nargs="+", default=[0.15, 0.20],
-                        help="Signal-to-noise ratio for the detector.")
-    parser.add_argument("--malign_mn", type=float, default=1.0, help="Minimum misalignment for TEM.")
-    parser.add_argument("--malign_mx", type=float, default=1.5, help="Maximum misalignment for TEM.")
-    parser.add_argument("--malign_sg", type=float, default=0.2, help="Standard deviation for misalignment.")
+    # Reconstruction settings 
+    # # TODO remove redundancy, noise addition and reconstruction is performed by faket-polnet pipeline.py
+    #parser.add_argument("--tilt_angs", type=int, nargs="+", default=list(range(-60, 61, 3)),
+    #                   help="Tilt angles for 3D reconstruction.")
+    #parser.add_argument("--detector_snr", type=float, nargs="+", default=[0.15, 0.20],
+    #                    help="Signal-to-noise ratio for the detector.")
+    #parser.add_argument("--malign_mn", type=float, default=1.0, help="Minimum misalignment for TEM.")
+    #parser.add_argument("--malign_mx", type=float, default=1.5, help="Maximum misalignment for TEM.")
+    #parser.add_argument("--malign_sg", type=float, default=0.2, help="Standard deviation for misalignment.")
     
     return parser.parse_args()
 
 def main():
     args = parse_args()
-    
     # Map arguments to variable names used in the script
     global OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, NTOMOS, VOI_SHAPE, VOI_OFFS, VOI_VSIZE
     global MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST, NEW_PROTEINS_LIST
@@ -300,11 +305,17 @@ def main():
     SURF_DEC = args.surf_dec
     MT_PMER_OCC = args.mt_pmer_occ
     ACTIN_PMER_OCC = args.actin_pmer_occ
-    TILT_ANGS = args.tilt_angs
-    DETECTOR_SNR = args.detector_snr
-    MALIGN_MN = args.malign_mn
-    MALIGN_MX = args.malign_mx
-    MALIGN_SG = args.malign_sg
+
+    #if "tilt_angs_start" in vars(args):
+    #    TILT_ANGS = list(range(args.tilt_angs_start, args.tilt_angs_stop + 1, args.tilt_angs_step))
+    #else: 
+    #    TILT_ANGS = args.tilt_angs
+
+    # TODO remove redundancy 
+    #DETECTOR_SNR = args.detector_snr
+    #MALIGN_MN = args.malign_mn
+    #MALIGN_MX = args.malign_mx
+    #MALIGN_SG = args.malign_sg
 
     disable_membranes = args.disable_membranes
     new_proteins = args.new_proteins
