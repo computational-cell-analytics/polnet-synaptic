@@ -1,0 +1,34 @@
+[tool.polnet]
+out_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/test_dataset/simulation_dir_0"
+ntomos = 3
+voi_vsize = 10 
+voi_shape = [630, 630, 184]
+
+# feature lists
+membranes_list = [
+    "in_mbs/sphere.mbs",
+    "in_mbs/ellipse.mbs",
+    "in_mbs/toroid.mbs"
+]
+
+helix_list = [
+    "in_helix/mt.hns",
+    "in_helix/actin.hns"
+]
+
+proteins_list = [
+    "in_10A/deepict/4v7r_10A.pns"
+]
+mt_pmer_occ = 0.3
+actin_pmer_occ = 0.7
+disable_membranes = true
+
+[tool.faket]
+base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/test_dataset"
+simulation_index = 0
+detector_snr = [0.4, 0.5]
+tilt_start = -60
+tilt_stop = 60
+tilt_step = 2
+
+

@@ -1,0 +1,37 @@
+[tool.polnet]
+out_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/czii/simulation_dir_0"
+ntomos = 3
+voi_vsize = 10 
+voi_shape = [630, 630, 184]
+
+# feature lists
+membranes_list = [
+    "in_mbs/sphere.mbs",
+    "in_mbs/ellipse.mbs",
+    "in_mbs/toroid.mbs"
+]
+
+helix_list = []
+
+proteins_list = [
+    "in_10A/6drv_10A.pns",
+    "in_10A/6n4v_10A.pns",
+    "in_10A/6qzp_10A.pns",
+    "in_10A/7n4y_10A.pns",
+    "in_10A/8cpv_10A.pns",
+    "in_10A/8vaf_10A.pns",
+    "in_10A/1fa2_10A.pns",
+]
+
+prop_list_raw = [5, 6, 6, 80, 13, 47, 1]
+prop_list_flag = true
+
+[tool.faket]
+base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/czii"
+simulation_index = 0
+detector_snr = [0.15, 0.20]
+tilt_start = -60
+tilt_stop = 60
+tilt_step = 3
+
+

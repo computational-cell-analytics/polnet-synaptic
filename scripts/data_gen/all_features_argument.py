@@ -169,6 +169,7 @@ def display_statistics_from_csv(csv_file):
 
 def parse_args():
     parser = configargparse.ArgParser(
+        default_config_files=["./configs/debug.toml"],
         config_file_parser_class=configargparse.TomlConfigParser(["tool.polnet"])
     )
     # input configuration file (TOML)
@@ -176,7 +177,7 @@ def parse_args():
                         help="Path to TOML configuration file.")
 
     # Logging and output directories
-    parser.add_argument("--out_dir", type=str, default=None,
+    parser.add_argument("--out_dir", type=str, default="./out",
                         help="Output directory for generated tomograms.")
     parser.add_argument("--log_dir", type=str, default=None,
                         help="Directory for log files. Defaults to <out_dir>/logs.")
@@ -204,8 +205,8 @@ def parse_args():
         "in_mbs/toroid.mbs"
     ], help="List of membrane files.")
     parser.add_argument("--helix_list", type=str, nargs="+", default=[
-        "in_helix/deepict/mt.hns",
-        "in_helix/deepict/actin.hns"
+        "in_helix/mt.hns",
+        "in_helix/actin.hns"
     ], help="List of helicoidal protein files.")
     parser.add_argument("--proteins_list", type=str, nargs="+", default=[
         #"in_10A/4v4r_10A.pns",
@@ -240,18 +241,11 @@ def parse_args():
         #"in_10A/mb_5tqq_10A.pms",
         #"in_10A/mb_5vai_10A.pms",
     ], help="List of membrane protein files.")
-    parser.add_argument("--new_proteins_list", type=str, nargs="+", default=[
-        "in_10A/deepict/4v7r_10A.pns",
-    ], help="List of new protein files.")
-    
+
     # Flags for feature inclusion
     parser.add_argument("--disable_membranes", action="store_true", default=False,
                         help="Disable membrane generation (default: False).")
-    parser.add_argument("--new_proteins", action="store_true", default=True,
-                        help="Include new proteins (default: True).")
-    parser.add_argument("--only_new_proteins", action="store_true", default=True,
-                        help="Use only new proteins (default: True).")
-    parser.add_argument("--not_use_membrane_proteins", action="store_true", default=True,
+    parser.add_argument("--disable_membrane_proteins", action="store_true", default=True,
                         help="Exclude membrane proteins (default: True).")
     parser.add_argument("--prop_list_flag", action="store_true", default=False,
                         help="Use proportions list (default: False).")
@@ -259,6 +253,8 @@ def parse_args():
     # Proportions and surface decimation
     parser.add_argument("--prop_list_raw", type=int, nargs="+", default=[5, 6, 6, 80, 13, 47, 1],
                         help="Raw proportions list for proteins.")
+    parser.add_argument("--protein_pmer_occ_list", type=float, nargs="+", default=None,
+                        help="Polymer occupancy list for proteins.")                    
     parser.add_argument("--surf_dec", type=float, default=0.9,
                         help="Target reduction factor for surface decimation.")
     parser.add_argument("--mt_pmer_occ", type=float, default=False,
@@ -266,24 +262,15 @@ def parse_args():
     parser.add_argument("--actin_pmer_occ", type=float, default=False,
                         help="Actin polymer occupancy. If not provided, defaults to value specified in in_helix/actin.hns")
     
-    # Reconstruction settings 
-    # # TODO remove redundancy, noise addition and reconstruction is performed by faket-polnet pipeline.py
-    #parser.add_argument("--tilt_angs", type=int, nargs="+", default=list(range(-60, 61, 3)),
-    #                   help="Tilt angles for 3D reconstruction.")
-    #parser.add_argument("--detector_snr", type=float, nargs="+", default=[0.15, 0.20],
-    #                    help="Signal-to-noise ratio for the detector.")
-    #parser.add_argument("--malign_mn", type=float, default=1.0, help="Minimum misalignment for TEM.")
-    #parser.add_argument("--malign_mx", type=float, default=1.5, help="Maximum misalignment for TEM.")
-    #parser.add_argument("--malign_sg", type=float, default=0.2, help="Standard deviation for misalignment.")
-    
     return parser.parse_args()
 
 def main():
     args = parse_args()
+
     # Map arguments to variable names used in the script
     global OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, NTOMOS, VOI_SHAPE, VOI_OFFS, VOI_VSIZE
-    global MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST, NEW_PROTEINS_LIST
-    global PROP_LIST_RAW, PROP_LIST_Flag, SURF_DEC, TILT_ANGS, DETECTOR_SNR, MALIGN_MN, MALIGN_MX, MALIGN_SG
+    global MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST
+    global PROP_LIST_RAW, PROP_LIST_Flag, SURF_DEC
     
     OUT_DIR = args.out_dir
     ROOT_PATH = args.root_path
@@ -299,30 +286,22 @@ def main():
     HELIX_LIST = args.helix_list
     PROTEINS_LIST = args.proteins_list
     MB_PROTEINS_LIST = args.mb_proteins_list
-    NEW_PROTEINS_LIST = args.new_proteins_list
     PROP_LIST_RAW = np.array(args.prop_list_raw)
+    PROTEIN_PMER_OCC_LIST = np.array(args.protein_pmer_occ_list)
     PROP_LIST_Flag = args.prop_list_flag
     SURF_DEC = args.surf_dec
     MT_PMER_OCC = args.mt_pmer_occ
     ACTIN_PMER_OCC = args.actin_pmer_occ
 
-    #if "tilt_angs_start" in vars(args):
-    #    TILT_ANGS = list(range(args.tilt_angs_start, args.tilt_angs_stop + 1, args.tilt_angs_step))
-    #else: 
-    #    TILT_ANGS = args.tilt_angs
-
-    # TODO remove redundancy 
-    #DETECTOR_SNR = args.detector_snr
-    #MALIGN_MN = args.malign_mn
-    #MALIGN_MX = args.malign_mx
-    #MALIGN_SG = args.malign_sg
-
     disable_membranes = args.disable_membranes
-    new_proteins = args.new_proteins
-    only_new_proteins = args.only_new_proteins
-    not_use_membrane_proteins = args.not_use_membrane_proteins
+    disable_membrane_proteins = args.disable_membrane_proteins
     PROP_LIST_Flag = args.prop_list_flag
     
+    if PROTEIN_PMER_OCC_LIST is not None:
+        assert len(PROTEIN_PMER_OCC_LIST) == len(PROTEINS_LIST)
+    if PROP_LIST_RAW is not None:
+        assert len(PROP_LIST_RAW) == len(PROTEINS_LIST)
+
     VOI_OFFS = (
     (4, VOI_SHAPE[0] - 4),
     (4, VOI_SHAPE[1] - 4),
@@ -384,14 +363,10 @@ def main():
     save_input_files(ROOT_PATH, OUTPUT_ARCHIVE, exclude_dirs=["templates","in_mbs","in_helix"])
     save_input_files(ROOT_PATH_ACTIN, OUTPUT_ARCHIVE_ACTIN, exclude_dirs=["templates","in_10A"])
     
-    if new_proteins:
-        PROTEINS_LIST += NEW_PROTEINS_LIST
-    if only_new_proteins:
-        PROTEINS_LIST = NEW_PROTEINS_LIST
-        # PROTEINS_LIST = NEW_PROTEINS_LIST
-    if not_use_membrane_proteins:
+
+    if disable_membrane_proteins:
         MB_PROTEINS_LIST = []
-    # [.4, .6]
+
     if  PROP_LIST_Flag:
         PROP_LIST = PROP_LIST_RAW / np.sum(PROP_LIST_RAW)  
     else:
@@ -762,12 +737,15 @@ def main():
             protein = MmerFile(ROOT_PATH + "/" + p_file)
 
             # Generating the occupancy
-            hold_occ = protein.get_pmer_occ()
+            if PROTEIN_PMER_OCC_LIST is not None:
+                hold_occ = PROTEIN_PMER_OCC_LIST[p_id]
 
-            # TODO parameter actin + MT actin occ
-            if hasattr(hold_occ, "__len__"):
-                hold_occ = OccGen(hold_occ).gen_occupancy()
-                print(f"{p_id} protein_occupancy is {hold_occ}")
+            else:
+                hold_occ = protein.get_pmer_occ()
+                if hasattr(hold_occ, "__len__"):
+                    hold_occ = OccGen(hold_occ).gen_occupancy()
+            
+            print(f"{p_id} protein_occupancy is {hold_occ}")
 
             # Genrate the SAWLC network associated to the input protein
             # Polymer parameters
