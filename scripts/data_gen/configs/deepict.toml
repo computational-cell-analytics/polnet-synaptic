@@ -5,23 +5,21 @@ voi_vsize = 10
 voi_shape = [630, 630, 184]
 
 # feature lists
-membranes_list = [
-    "in_mbs/sphere.mbs",
-    "in_mbs/ellipse.mbs",
-    "in_mbs/toroid.mbs"
-]
-
 helix_list = [
     "in_helix/mt.hns",
     "in_helix/actin.hns"
 ]
 
 proteins_list = [
-    "in_10A/deepict/4v7r_10A.pns"
+    "in_10A/6qzp_10A.pns"
 ]
+
+# occupancy values
 mt_pmer_occ = 0.3
 actin_pmer_occ = 0.7
+protein_pmer_occ_list = [0.1]
 disable_membranes = true
+disable_membrane_proteins = true
 
 [tool.faket]
 base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/test_dataset"
@@ -30,5 +28,6 @@ detector_snr = [0.4, 0.5]
 tilt_start = -60
 tilt_stop = 60
 tilt_step = 2
+
 
 

@@ -270,7 +270,7 @@ def main():
     # Map arguments to variable names used in the script
     global OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, NTOMOS, VOI_SHAPE, VOI_OFFS, VOI_VSIZE
     global MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST
-    global PROP_LIST_RAW, PROP_LIST_Flag, SURF_DEC
+    global PROP_LIST_RAW, PROP_LIST_FLAG, SURF_DEC
     
     OUT_DIR = args.out_dir
     ROOT_PATH = args.root_path
@@ -286,21 +286,15 @@ def main():
     HELIX_LIST = args.helix_list
     PROTEINS_LIST = args.proteins_list
     MB_PROTEINS_LIST = args.mb_proteins_list
-    PROP_LIST_RAW = np.array(args.prop_list_raw)
-    PROTEIN_PMER_OCC_LIST = np.array(args.protein_pmer_occ_list)
-    PROP_LIST_Flag = args.prop_list_flag
+    PROP_LIST_RAW = np.array(args.prop_list_raw) if args.prop_list_raw is not None else None
+    PROTEIN_PMER_OCC_LIST = np.array(args.protein_pmer_occ_list) if args.protein_pmer_occ_list is not None else None
     SURF_DEC = args.surf_dec
     MT_PMER_OCC = args.mt_pmer_occ
     ACTIN_PMER_OCC = args.actin_pmer_occ
 
     disable_membranes = args.disable_membranes
     disable_membrane_proteins = args.disable_membrane_proteins
-    PROP_LIST_Flag = args.prop_list_flag
-    
-    if PROTEIN_PMER_OCC_LIST is not None:
-        assert len(PROTEIN_PMER_OCC_LIST) == len(PROTEINS_LIST)
-    if PROP_LIST_RAW is not None:
-        assert len(PROP_LIST_RAW) == len(PROTEINS_LIST)
+    PROP_LIST_FLAG = args.prop_list_flag
 
     VOI_OFFS = (
     (4, VOI_SHAPE[0] - 4),
@@ -367,13 +361,18 @@ def main():
     if disable_membrane_proteins:
         MB_PROTEINS_LIST = []
 
-    if  PROP_LIST_Flag:
+    if  PROP_LIST_FLAG:
         PROP_LIST = PROP_LIST_RAW / np.sum(PROP_LIST_RAW)  
     else:
         PROP_LIST = None
 
     if PROP_LIST is not None:
         assert sum(PROP_LIST) == 1
+        assert len(PROP_LIST) == len(PROTEINS_LIST)
+
+    if PROTEIN_PMER_OCC_LIST is not None:
+        assert len(PROTEIN_PMER_OCC_LIST) == len(PROTEINS_LIST)
+
     os.makedirs(OUT_DIR, exist_ok=True)
 
     TEM_DIR = OUT_DIR + "/tem"
