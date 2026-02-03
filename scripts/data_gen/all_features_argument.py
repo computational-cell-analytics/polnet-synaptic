@@ -251,7 +251,7 @@ def parse_args():
                         help="Use proportions list (default: False).")
 
     # Proportions and surface decimation
-    parser.add_argument("--prop_list_raw", type=int, nargs="+", default=[5, 6, 6, 80, 13, 47, 1],
+    parser.add_argument("--prop_list_raw", type=int, nargs="+", default=None,
                         help="Raw proportions list for proteins.")
     parser.add_argument("--protein_pmer_occ_list", type=float, nargs="+", default=None,
                         help="Polymer occupancy list for proteins.")                    
