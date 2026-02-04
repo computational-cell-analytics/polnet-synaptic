@@ -1,0 +1,35 @@
+[tool.polnet]
+out_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/testing/synapse"
+ntomos = 3
+voi_vsize = 10 
+voi_shape = [630, 630, 184]
+
+# feature lists
+membranes_list = [
+    "in_mbs/ellipse.mbs",
+]
+helix_list = [
+    "in_helix/mt.hns",
+    "in_helix/actin.hns"
+]
+proteins_list = [
+    "in_10A/6qzp_10A.pns"
+]
+membrane_proteins_list = [
+    
+]
+# occupancy values
+mt_pmer_occ = 0.15
+actin_pmer_occ = 0.3
+pmer_occ_list = [0.1]
+pmer_occ_list_flag = true
+disable_membranes = false
+disable_membrane_proteins = true
+
+[tool.faket]
+base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/test_dataset"
+simulation_index = 2
+detector_snr = [0.4, 0.5]
+tilt_start = -60
+tilt_stop = 60
+tilt_step = 2

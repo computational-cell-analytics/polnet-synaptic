@@ -28,7 +28,7 @@ import random
 import tarfile
 import math
 import numpy as np
-import argparse
+import configargparse
 from polnet.utils import *
 from polnet import lio
 from polnet import tem
@@ -118,16 +118,22 @@ def setup_logging(out_dir, use_logging=True):
 
 def parse_arguments():
     """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description='Generate synthetic tomograms with various features')
+    parser = configargparse.ArgParser(
+        default_config_files=["./configs/debug.toml"],
+        config_file_parser_class=configargparse.TomlConfigParser(["tool.polnet"])
+    )
+    # input configuration file (TOML)
+    parser.add_argument("--config", type=str, default=None, is_config_file_arg=True,
+                        help="Path to TOML configuration file.")
     
     # Path arguments
     parser.add_argument('--root_path', default=os.path.realpath(os.getcwd() + "/../../data"),
                        help='Root path for protein data')
-    parser.add_argument('--root_path_actin', default=os.path.realpath(os.getcwd() + "/../../polnet_data/data"),
+    parser.add_argument('--root_path_actin', default=os.path.realpath(os.getcwd() + "/../../data/synapse"),
                        help='Root path for actin data')
-    parser.add_argument('--root_path_membrane', default=os.path.realpath(os.getcwd() + "/../../polnet_data/data"),
+    parser.add_argument('--root_path_membrane', default=os.path.realpath(os.getcwd() + "/../../data/synapse"),
                        help='Root path for membrane data')
-    parser.add_argument('--root_path_mb', default=os.path.realpath(os.getcwd() + "/../../polnet_data/data"),
+    parser.add_argument('--root_path_mb', default=os.path.realpath(os.getcwd() + "/../../data/synapse"),
                        help='Root path for membrane protein data')
     parser.add_argument('--out_dir', default=None,
                        help='Output directory')

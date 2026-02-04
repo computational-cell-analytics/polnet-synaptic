@@ -183,11 +183,11 @@ def parse_args():
                         help="Directory for log files. Defaults to <out_dir>/logs.")
     
     # Common tomogram settings
-    parser.add_argument("--root_path", type=str, default=os.path.realpath(os.getcwd() + "/../../data/default"),
+    parser.add_argument("--root_path", type=str, default=os.path.realpath(os.getcwd() + "/../../data"),
                         help="Root path for input data.")
-    parser.add_argument("--root_path_actin", type=str, default= os.path.realpath(os.getcwd() + "/../../data/default"),
+    parser.add_argument("--root_path_actin", type=str, default= os.path.realpath(os.getcwd() + "/../../data"),
                         help="Root path for helix data.")
-    parser.add_argument("--root_path_membrane", type=str, default = os.path.realpath(os.getcwd() + "/../../data/default"),
+    parser.add_argument("--root_path_membrane", type=str, default = os.path.realpath(os.getcwd() + "/../../data"),
                         help="Root path for membrane data.")
     parser.add_argument("--ntomos", type=int, default=30, help="Number of tomograms to simulate.")
     parser.add_argument("--voi_shape", type=int, nargs=3, default=[630, 630, 184],
