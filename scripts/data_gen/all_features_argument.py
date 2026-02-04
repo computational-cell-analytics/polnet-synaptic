@@ -245,15 +245,19 @@ def parse_args():
     # Flags for feature inclusion
     parser.add_argument("--disable_membranes", action="store_true", default=False,
                         help="Disable membrane generation (default: False).")
+    parser.add_argument("--disable_helix", action="store_true", default=False,
+                        help="Disable helix generation (default: False).")
     parser.add_argument("--disable_membrane_proteins", action="store_true", default=True,
                         help="Exclude membrane proteins (default: True).")
     parser.add_argument("--prop_list_flag", action="store_true", default=False,
                         help="Use proportions list (default: False).")
+    parser.add_argument("--pmer_occ_list_flag", action="store_true", default=False,
+                        help="Use pmer occupancy list (default: False).")
 
     # Proportions and surface decimation
     parser.add_argument("--prop_list_raw", type=int, nargs="+", default=None,
                         help="Raw proportions list for proteins.")
-    parser.add_argument("--protein_pmer_occ_list", type=float, nargs="+", default=None,
+    parser.add_argument("--pmer_occ_list", type=float, nargs="+", default=None,
                         help="Polymer occupancy list for proteins.")                    
     parser.add_argument("--surf_dec", type=float, default=0.9,
                         help="Target reduction factor for surface decimation.")
@@ -270,7 +274,7 @@ def main():
     # Map arguments to variable names used in the script
     global OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, NTOMOS, VOI_SHAPE, VOI_OFFS, VOI_VSIZE
     global MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST
-    global PROP_LIST_RAW, PROP_LIST_FLAG, SURF_DEC
+    global PROP_LIST_RAW, SURF_DEC
     
     OUT_DIR = args.out_dir
     ROOT_PATH = args.root_path
@@ -286,15 +290,38 @@ def main():
     HELIX_LIST = args.helix_list
     PROTEINS_LIST = args.proteins_list
     MB_PROTEINS_LIST = args.mb_proteins_list
-    PROP_LIST_RAW = np.array(args.prop_list_raw) if args.prop_list_raw is not None else None
-    PROTEIN_PMER_OCC_LIST = np.array(args.protein_pmer_occ_list) if args.protein_pmer_occ_list is not None else None
+    PROP_LIST_RAW = np.array(args.prop_list_raw)
+    PMER_OCC_LIST = np.array(args.pmer_occ_list)
     SURF_DEC = args.surf_dec
     MT_PMER_OCC = args.mt_pmer_occ
     ACTIN_PMER_OCC = args.actin_pmer_occ
 
     disable_membranes = args.disable_membranes
     disable_membrane_proteins = args.disable_membrane_proteins
-    PROP_LIST_FLAG = args.prop_list_flag
+    disable_helix = args.disable_helix
+    USE_PROP_LIST = args.prop_list_flag
+    USE_PMER_OCC_LIST = args.pmer_occ_list_flag
+
+    if USE_PROP_LIST:
+        assert len(PROP_LIST_RAW) == len(PROTEINS_LIST)
+        PROP_LIST = PROP_LIST_RAW / np.sum(PROP_LIST_RAW)  
+    else:
+        PROP_LIST = None
+
+    if PROP_LIST is not None:
+        assert sum(PROP_LIST) == 1
+
+    if USE_PMER_OCC_LIST:
+        assert len(PMER_OCC_LIST) == len(PROTEINS_LIST)
+    else: 
+        PMER_OCC_LIST = None
+
+    if disable_membranes:
+        MEMBRANES_LIST = []
+    if disable_membrane_proteins:
+        MB_PROTEINS_LIST = []
+    if disable_helix:
+        HELIX_LIST = []
 
     VOI_OFFS = (
     (4, VOI_SHAPE[0] - 4),
@@ -356,22 +383,6 @@ def main():
     # Save all files except those in the "templates" directory
     save_input_files(ROOT_PATH, OUTPUT_ARCHIVE, exclude_dirs=["templates","in_mbs","in_helix"])
     save_input_files(ROOT_PATH_ACTIN, OUTPUT_ARCHIVE_ACTIN, exclude_dirs=["templates","in_10A"])
-    
-
-    if disable_membrane_proteins:
-        MB_PROTEINS_LIST = []
-
-    if  PROP_LIST_FLAG:
-        PROP_LIST = PROP_LIST_RAW / np.sum(PROP_LIST_RAW)  
-    else:
-        PROP_LIST = None
-
-    if PROP_LIST is not None:
-        assert sum(PROP_LIST) == 1
-        assert len(PROP_LIST) == len(PROTEINS_LIST)
-
-    if PROTEIN_PMER_OCC_LIST is not None:
-        assert len(PROTEIN_PMER_OCC_LIST) == len(PROTEINS_LIST)
 
     os.makedirs(OUT_DIR, exist_ok=True)
 
@@ -457,110 +468,108 @@ def main():
 
         # Membranes loop
         count_mbs, hold_den = 0, None
-        if not disable_membranes:
-            for p_id, p_file in tqdm(enumerate(MEMBRANES_LIST),desc="Generating membranes"):
-        
-                print("\tPROCESSING FILE:", p_file)
+        for p_id, p_file in tqdm(enumerate(MEMBRANES_LIST),desc="Generating membranes"):
 
-                # Loading the membrane file
-                memb = MbFile()
-                memb.load_mb_file(ROOT_PATH_MEMBRANE + "/" + p_file)
+            print("\tPROCESSING FILE:", p_file)
 
-                # Generating the occupancy
-                hold_occ = memb.get_occ()
-                if hasattr(hold_occ, "__len__"):
-                    hold_occ = OccGen(hold_occ).gen_occupancy()
+            # Loading the membrane file
+            memb = MbFile()
+            memb.load_mb_file(ROOT_PATH_MEMBRANE + "/" + p_file)
 
-                # Membrane random generation by type
-                param_rg = (
-                    memb.get_min_rad(),
-                    math.sqrt(3) * max(VOI_SHAPE) * VOI_VSIZE,
-                    memb.get_max_ecc(),
+            # Generating the occupancy
+            hold_occ = memb.get_occ()
+            if hasattr(hold_occ, "__len__"):
+                hold_occ = OccGen(hold_occ).gen_occupancy()
+
+            # Membrane random generation by type
+            param_rg = (
+                memb.get_min_rad(),
+                math.sqrt(3) * max(VOI_SHAPE) * VOI_VSIZE,
+                memb.get_max_ecc(),
+            )
+            if memb.get_type() == "sphere":
+                mb_sph_generator = SphGen(radius_rg=(param_rg[0], param_rg[1]))
+                set_mbs = SetMembranes(
+                    voi,
+                    VOI_VSIZE,
+                    mb_sph_generator,
+                    param_rg,
+                    memb.get_thick_rg(),
+                    memb.get_layer_s_rg(),
+                    hold_occ,
+                    memb.get_over_tol(),
+                    bg_voi=bg_voi,
                 )
-                if memb.get_type() == "sphere":
-                    mb_sph_generator = SphGen(radius_rg=(param_rg[0], param_rg[1]))
-                    set_mbs = SetMembranes(
-                        voi,
-                        VOI_VSIZE,
-                        mb_sph_generator,
-                        param_rg,
-                        memb.get_thick_rg(),
-                        memb.get_layer_s_rg(),
-                        hold_occ,
-                        memb.get_over_tol(),
-                        bg_voi=bg_voi,
+                set_mbs.build_set(verbosity=True)
+                hold_den = set_mbs.get_tomo()
+                if memb.get_den_cf_rg() is not None:
+                    hold_den *= mb_sph_generator.gen_den_cf(
+                        memb.get_den_cf_rg()[0], memb.get_den_cf_rg()[1]
                     )
-                    set_mbs.build_set(verbosity=True)
-                    hold_den = set_mbs.get_tomo()
-                    if memb.get_den_cf_rg() is not None:
-                        hold_den *= mb_sph_generator.gen_den_cf(
-                            memb.get_den_cf_rg()[0], memb.get_den_cf_rg()[1]
-                        )
-                elif memb.get_type() == "ellipse":
-                    mb_ellip_generator = EllipGen(
-                        radius_rg=param_rg[:2], max_ecc=param_rg[2]
+            elif memb.get_type() == "ellipse":
+                mb_ellip_generator = EllipGen(
+                    radius_rg=param_rg[:2], max_ecc=param_rg[2]
+                )
+                set_mbs = SetMembranes(
+                    voi,
+                    VOI_VSIZE,
+                    mb_ellip_generator,
+                    param_rg,
+                    memb.get_thick_rg(),
+                    memb.get_layer_s_rg(),
+                    hold_occ,
+                    memb.get_over_tol(),
+                    bg_voi=bg_voi,
+                )
+                set_mbs.build_set(verbosity=True)
+                hold_den = set_mbs.get_tomo()
+                if memb.get_den_cf_rg() is not None:
+                    hold_den *= mb_ellip_generator.gen_den_cf(
+                        memb.get_den_cf_rg()[0], memb.get_den_cf_rg()[1]
                     )
-                    set_mbs = SetMembranes(
-                        voi,
-                        VOI_VSIZE,
-                        mb_ellip_generator,
-                        param_rg,
-                        memb.get_thick_rg(),
-                        memb.get_layer_s_rg(),
-                        hold_occ,
-                        memb.get_over_tol(),
-                        bg_voi=bg_voi,
+            elif memb.get_type() == "toroid":
+                mb_tor_generator = TorGen(radius_rg=(param_rg[0], param_rg[1]))
+                set_mbs = SetMembranes(
+                    voi,
+                    VOI_VSIZE,
+                    mb_tor_generator,
+                    param_rg,
+                    memb.get_thick_rg(),
+                    memb.get_layer_s_rg(),
+                    hold_occ,
+                    memb.get_over_tol(),
+                    bg_voi=bg_voi,
+                )
+                set_mbs.build_set(verbosity=True)
+                hold_den = set_mbs.get_tomo()
+                if memb.get_den_cf_rg() is not None:
+                    hold_den *= mb_tor_generator.gen_den_cf(
+                        memb.get_den_cf_rg()[0], memb.get_den_cf_rg()[1]
                     )
-                    set_mbs.build_set(verbosity=True)
-                    hold_den = set_mbs.get_tomo()
-                    if memb.get_den_cf_rg() is not None:
-                        hold_den *= mb_ellip_generator.gen_den_cf(
-                            memb.get_den_cf_rg()[0], memb.get_den_cf_rg()[1]
-                        )
-                elif memb.get_type() == "toroid":
-                    mb_tor_generator = TorGen(radius_rg=(param_rg[0], param_rg[1]))
-                    set_mbs = SetMembranes(
-                        voi,
-                        VOI_VSIZE,
-                        mb_tor_generator,
-                        param_rg,
-                        memb.get_thick_rg(),
-                        memb.get_layer_s_rg(),
-                        hold_occ,
-                        memb.get_over_tol(),
-                        bg_voi=bg_voi,
-                    )
-                    set_mbs.build_set(verbosity=True)
-                    hold_den = set_mbs.get_tomo()
-                    if memb.get_den_cf_rg() is not None:
-                        hold_den *= mb_tor_generator.gen_den_cf(
-                            memb.get_den_cf_rg()[0], memb.get_den_cf_rg()[1]
-                        )
-                else:
-                    print("ERROR: Membrane type", memb.get_type(), "not recognized!")
-                    sys.exit()
-
-                # Density tomogram updating
-                voi = set_mbs.get_voi()
-                mb_mask = set_mbs.get_tomo() > 0
-                mb_mask[voi_inital_invert] = False
-                tomo_lbls[mb_mask] = entity_id
-                count_mbs += set_mbs.get_num_mbs()
-                mb_voxels += (tomo_lbls == entity_id).sum()
-                tomo_den = np.maximum(tomo_den, hold_den)
-                hold_vtp = set_mbs.get_vtp()
-                pp.add_label_to_poly(hold_vtp, entity_id, "Entity", mode="both")
-                pp.add_label_to_poly(hold_vtp, LBL_MB, "Type", mode="both")
-                if poly_vtp is None:
-                    poly_vtp = hold_vtp
-                    skel_vtp = hold_vtp
-                else:
-                    poly_vtp = pp.merge_polys(poly_vtp, hold_vtp)
-                    skel_vtp = pp.merge_polys(skel_vtp, hold_vtp)
-                synth_tomo.add_set_mbs(set_mbs, "Membrane", entity_id, memb.get_type())
-                entity_id += 1
             else:
-                print("Membrane generation disabled.")
+                print("ERROR: Membrane type", memb.get_type(), "not recognized!")
+                sys.exit()
+
+            # Density tomogram updating
+            voi = set_mbs.get_voi()
+            mb_mask = set_mbs.get_tomo() > 0
+            mb_mask[voi_inital_invert] = False
+            tomo_lbls[mb_mask] = entity_id
+            count_mbs += set_mbs.get_num_mbs()
+            mb_voxels += (tomo_lbls == entity_id).sum()
+            tomo_den = np.maximum(tomo_den, hold_den)
+            hold_vtp = set_mbs.get_vtp()
+            pp.add_label_to_poly(hold_vtp, entity_id, "Entity", mode="both")
+            pp.add_label_to_poly(hold_vtp, LBL_MB, "Type", mode="both")
+            if poly_vtp is None:
+                poly_vtp = hold_vtp
+                skel_vtp = hold_vtp
+            else:
+                poly_vtp = pp.merge_polys(poly_vtp, hold_vtp)
+                skel_vtp = pp.merge_polys(skel_vtp, hold_vtp)
+            synth_tomo.add_set_mbs(set_mbs, "Membrane", entity_id, memb.get_type())
+            entity_id += 1
+
         # Get membranes poly
         if set_mbs is not None:
             mbs_vtp = vtk.vtkPolyData()
@@ -736,8 +745,8 @@ def main():
             protein = MmerFile(ROOT_PATH + "/" + p_file)
 
             # Generating the occupancy
-            if PROTEIN_PMER_OCC_LIST is not None:
-                hold_occ = PROTEIN_PMER_OCC_LIST[p_id]
+            if USE_PMER_OCC_LIST:
+                hold_occ = PMER_OCC_LIST[p_id]
 
             else:
                 hold_occ = protein.get_pmer_occ()

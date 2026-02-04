@@ -1,18 +1,10 @@
 [tool.polnet]
-out_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/czii/simulation_dir_0"
+out_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/testing/czii"
 ntomos = 3
 voi_vsize = 10 
 voi_shape = [630, 630, 184]
 
 # feature lists
-membranes_list = [
-    "in_mbs/sphere.mbs",
-    "in_mbs/ellipse.mbs",
-    "in_mbs/toroid.mbs"
-]
-
-helix_list = []
-
 proteins_list = [
     "in_10A/6drv_10A.pns",
     "in_10A/6n4v_10A.pns",
@@ -25,9 +17,11 @@ proteins_list = [
 
 prop_list_raw = [5, 6, 6, 80, 13, 47, 1]
 prop_list_flag = true
+disable_membranes = true
+disable_helix = true
 
 [tool.faket]
-base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/czii"
+base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/testing/czii"
 simulation_index = 0
 detector_snr = [0.15, 0.20]
 tilt_start = -60
