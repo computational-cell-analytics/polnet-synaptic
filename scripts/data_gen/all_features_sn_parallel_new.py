@@ -119,7 +119,7 @@ def setup_logging(out_dir, use_logging=True):
 def parse_arguments():
     """Parse command line arguments"""
     parser = configargparse.ArgParser(
-        default_config_files=["./configs/debug.toml"],
+        default_config_files=["./configs/synapse.toml"],
         config_file_parser_class=configargparse.TomlConfigParser(["tool.polnet"])
     )
     # input configuration file (TOML)
@@ -148,39 +148,40 @@ def parse_arguments():
     parser.add_argument('--mmer_tries', type=int, default=10, help='Number of monomer placement tries')
     parser.add_argument('--pmer_tries', type=int, default=1000, help='Number of polymer placement tries')
     
-    # Feature selection - preserving the original conditional logic
-    parser.add_argument('--new_proteins', action='store_true', 
-                       help='Add new proteins to existing protein list (like original new_proteins flag)')
-    parser.add_argument('--only_new_proteins', action='store_true',
-                       help='Use only new proteins (overrides new_proteins)')
-    parser.add_argument('--no_cytosolic_proteins', action='store_true',
-                       help='Disable all cytosolic proteins (like original no_cytosolic_proteins)')
-    parser.add_argument('--not_use_membrane_proteins', action='store_true',
-                       help='Disable membrane proteins (like original not_use_membrane_proteins)')
-    parser.add_argument('--use_new_membrane_proteins_only', action='store_true',
-                       help='Use only new membrane proteins (like original use_new_membrane_proteins_only)')
+    # Feature selection
+    parser.add_argument("--disable_membranes", action="store_true", default=False,
+                        help="Disable membrane generation (default: False).")
+    parser.add_argument("--disable_helix", action="store_true", default=False,
+                        help="Disable helix generation (default: False).")
+    parser.add_argument("--disable_cytosolic_proteins", action="store_true", default=True,
+                        help="Disable cytosolic protein generation (default: True).")
+    parser.add_argument("--disable_membrane_proteins", action="store_true", default=False,
+                        help="Disable membrane protein generation (default: True).")
+    parser.add_argument("--prop_list_flag", action="store_true", default=False,
+                        help="Use proportions list (default: False).")
+    parser.add_argument("--pmer_occ_list_flag", action="store_true", default=False,
+                        help="Use pmer occupancy list (default: False).")
+
+    # Proportions and surface decimation
+    parser.add_argument("--prop_list_raw", type=int, nargs="+", default=None,
+                        help="Raw proportions list for proteins.")
+    parser.add_argument("--pmer_occ_list", type=float, nargs="+", default=None,
+                        help="Polymer occupancy list for proteins.")                    
+    parser.add_argument("--surf_dec", type=float, default=0.9,
+                        help="Target reduction factor for surface decimation.")
+    parser.add_argument("--mt_pmer_occ", type=float, default=False,
+                        help="Microtubule polymer occupany. If not provided, defaults to value specified in in_helix/mt.hns")
+    parser.add_argument("--actin_pmer_occ", type=float, default=False,
+                        help="Actin polymer occupancy. If not provided, defaults to value specified in in_helix/actin.hns")
     
-    # Reconstruction parameters
-    parser.add_argument('--tilt_angs', type=float, nargs='+', default=np.arange(-60, 60, 3).tolist(),
-                       help='Tilt angles for reconstruction')
-    parser.add_argument('--detector_snr', type=float, nargs=2, default=[1.0, 2.0],
-                       help='Detector SNR range')
-    parser.add_argument('--malign_mn', type=float, default=1.0, help='Misalignment mean')
-    parser.add_argument('--malign_mx', type=float, default=1.5, help='Misalignment max')
-    parser.add_argument('--malign_sg', type=float, default=0.2, help='Misalignment sigma')
     
-    # Advanced parameters
-    parser.add_argument('--surf_dec', type=float, default=0.9, help='Surface decimation factor')
-    parser.add_argument('--use_proportions', action='store_true', help='Use protein proportions')
-    parser.add_argument('--prop_list', type=float, nargs='+', default=[5, 6, 6, 80, 13, 47, 1],
-                       help='Protein proportions list')
     parser.add_argument('--no_logging', action='store_true', help='Disable logging')
     parser.add_argument('--print_parameters', action='store_true', help='Print parameters and exit')
     
     # Shape selection (mutually exclusive)
     shape_group = parser.add_mutually_exclusive_group()
     shape_group.add_argument('--synaptic_shape', action='store_true', help='Use synaptic shape (1024,1024,500)')
-    shape_group.add_argument('--czII_challenge_shape', action='store_true', help='Use CZII challenge shape (630,630,184)')
+    shape_group.add_argument('--czii_shape', action='store_true', help='Use CZII challenge shape (630,630,184)')
     shape_group.add_argument('--polnet_shape', action='store_true', help='Use Polnet shape (1024,1024,250)')
     
     return parser.parse_args()
@@ -218,20 +219,8 @@ def get_feature_lists(args):
         "in_10A/1qvr_10A.pns",
         "in_10A/1bxn_10A.pns",
     ]
-    
+
     MB_PROTEINS_LIST = [
-        "in_10A/mb_6rd4_10A.pms",
-        "in_10A/mb_5wek_10A.pms",
-        "in_10A/mb_4pe5_10A.pms",
-        "in_10A/mb_5ide_10A.pms",
-        "in_10A/mb_5gjv_10A.pms",
-        "in_10A/mb_5kxi_10A.pms",
-        "in_10A/mb_5tj6_10A.pms",
-        "in_10A/mb_5tqq_10A.pms",
-        "in_10A/mb_5vai_10A.pms",
-    ]
-    
-    MB_PROTEINS_LIST_NEW = [
         "in_10A/mb_7tmr_10A.pms",
         "in_10A/mb_1l4a_10A.pms",
         "in_10A/mb_7udb_10A.pms",
@@ -243,46 +232,21 @@ def get_feature_lists(args):
         "in_10A/mb_Synaptophysin_10A.pms",
         "in_10A/mb_rab3_10A.pms",
     ]
-    
-    NEW_PROTEINS_LIST = [
-        "in_10A/6drv_10A.pns",
-        "in_10A/6n4v_10A.pns",
-        "in_10A/6qzp_10A.pns",
-        "in_10A/7n4y_10A.pns",
-        "in_10A/8cpv_10A.pns",
-        "in_10A/8vaf_10A.pns",
-        "in_10A/1fa2_10A.pns"
-    ]
 
-    # Apply feature selection - PRESERVING ORIGINAL CONDITIONAL LOGIC
-    # Original conditionals from the code:
-    # if new_proteins:
-    #     PROTEINS_LIST += NEW_PROTEINS_LIST
-    # if only_new_proteins:
-    #     PROTEINS_LIST = NEW_PROTEINS_LIST
-    # if no_cytosolic_proteins:
-    #     PROTEINS_LIST = []
-    # if not_use_membrane_proteins:
-    #     MB_PROTEINS_LIST = []
-    # if use_new_membrane_proteins_only:
-    #     MB_PROTEINS_LIST = MB_PROTEINS_LIST_NEW
-
-    if args.new_proteins:
-        PROTEINS_LIST += NEW_PROTEINS_LIST
-    if args.only_new_proteins:
-        PROTEINS_LIST = NEW_PROTEINS_LIST
-    if args.no_cytosolic_proteins:
+    if args.disable_membranes:
+        MEMBRANES_LIST = []
+    if args.disable_helix:
+        HELIX_LIST = []
+    if args.disable_cytosolic_proteins:
         PROTEINS_LIST = []
-    if args.use_new_membrane_proteins_only:
-        MB_PROTEINS_LIST = MB_PROTEINS_LIST_NEW
-    if args.not_use_membrane_proteins:
+    if args.disable_membrane_proteins:
         MB_PROTEINS_LIST = []
 
     return MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST
 
 def get_proportion_list(args, proteins_list):
     """Get the proportion list for proteins"""
-    if args.use_proportions and args.prop_list:
+    if args.prop_list_flag and args.prop_list:
         prop_list_raw = np.array(args.prop_list)
         # Extend proportions if needed
         if len(prop_list_raw) < len(proteins_list):
@@ -301,7 +265,7 @@ def get_voi_shape(args):
     """Get VOI shape based on shape selection flags"""
     if args.synaptic_shape:
         return (1024, 1024, 500)
-    elif args.czII_challenge_shape:
+    elif args.czii_shape:
         return (630, 630, 184)
     elif args.polnet_shape:
         return (1024, 1024, 250)
@@ -330,25 +294,15 @@ def print_parameters(args, membranes_list, helix_list, proteins_list, mb_protein
     print("PROP_LIST:", prop_list)
     print("PROP_LIST_Flag:", args.use_proportions)
     
-    print("\n--- Feature Selection (Preserving Original Logic) ---")
-    print("new_proteins:", args.new_proteins)
-    print("only_new_proteins:", args.only_new_proteins)
-    print("no_cytosolic_proteins:", args.no_cytosolic_proteins)
-    print("not_use_membrane_proteins:", args.not_use_membrane_proteins)
-    print("use_new_membrane_proteins_only:", args.use_new_membrane_proteins_only)
+    print("\n--- Feature Selection ---")
+    print("disable_cytosolic_proteins:", args.disable_cytosolic_proteins)
+    print("disable_membrane_proteins:", args.disable_membrane_proteins)
     
     print("\n--- Shape Selection ---")
     print("synaptic_shape:", args.synaptic_shape)
-    print("czII_challenge_shape:", args.czII_challenge_shape)
+    print("czii_shape:", args.czii_shape)
     print("polnet_shape:", args.polnet_shape)
     print("Final VOI_SHAPE:", voi_shape)
-    
-    print("\n--- Reconstruction Settings ---")
-    print("TILT_ANGS:", args.tilt_angs)
-    print("DETECTOR_SNR:", args.detector_snr)
-    print("MALIGN_MN:", args.malign_mn)
-    print("MALIGN_MX:", args.malign_mx)
-    print("MALIGN_SG:", args.malign_sg)
     
     print("\n--- Advanced Parameters ---")
     print("SURF_DEC:", args.surf_dec)

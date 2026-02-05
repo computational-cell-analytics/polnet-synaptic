@@ -16,15 +16,19 @@ proteins_list = [
     "in_10A/6qzp_10A.pns"
 ]
 membrane_proteins_list = [
-    
+    "in_10A/mb_7tmr_10A.pms",
+    "in_10A/mb_1l4a_10A.pms",
+    "in_10A/mb_7udb_10A.pms",
+    "in_10A/mb_8sbe_10A.pms",
+    "in_10A/mb_9brz_10A.pms",
+    "in_10A/mb_VMAT_10A.pms",
+    "in_10A/mb_VGLUT_10A.pms",
+    "in_10A/mb_Synaptotagmin_10A.pms",
+    "in_10A/mb_Synaptophysin_10A.pms",
+    "in_10A/mb_rab3_10A.pms"
 ]
-# occupancy values
-mt_pmer_occ = 0.15
-actin_pmer_occ = 0.3
-pmer_occ_list = [0.1]
-pmer_occ_list_flag = true
-disable_membranes = false
-disable_membrane_proteins = true
+# feature selection
+disable_cytosolic_proteins = true
 
 [tool.faket]
 base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/test_dataset"

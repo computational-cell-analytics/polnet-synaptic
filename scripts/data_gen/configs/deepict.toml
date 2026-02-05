@@ -1,5 +1,6 @@
 [tool.polnet]
 out_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/testing/deepict"
+seed = 0
 ntomos = 3
 voi_vsize = 10 
 voi_shape = [630, 630, 184]
@@ -27,8 +28,10 @@ disable_membranes = false
 disable_membrane_proteins = true
 
 [tool.faket]
-base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/test_dataset"
-simulation_index = 2
+base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/testing/deepict"
+seed = 0
+simulation_index = 0
+train_dir_index = 0
 detector_snr = [0.4, 0.5]
 tilt_start = -60
 tilt_stop = 60
