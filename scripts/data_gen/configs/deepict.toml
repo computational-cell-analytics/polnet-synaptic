@@ -1,5 +1,5 @@
 [tool.polnet]
-out_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/testing/deepict"
+out_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/testing/simulation_dir_1"
 seed = 0
 ntomos = 3
 voi_vsize = 10 
@@ -28,7 +28,7 @@ disable_membranes = false
 disable_membrane_proteins = true
 
 [tool.faket]
-base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/testing/deepict"
+base_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/testing"
 seed = 0
 simulation_index = 0
 train_dir_index = 0

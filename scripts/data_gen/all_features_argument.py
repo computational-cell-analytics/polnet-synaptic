@@ -268,7 +268,17 @@ def parse_args():
     
     return parser.parse_args()
 
-def generate_tomogram(tomod_id):
+def generate_tomogram(tomod_id, global_params):
+    """
+    Generate a single tomogram with the given ID and global parameters.
+    This function is designed to be called in parallel.
+    """
+    
+    # Unpack global parameters
+    (ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE, 
+    MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
+    PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TOMOS_DIR, 
+    USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP) = global_params
     
     print("GENERATING TOMOGRAM NUMBER:", tomod_id)
     hold_time = time.time()
@@ -847,11 +857,6 @@ def generate_tomogram(tomod_id):
 def main():
     args = parse_args()
 
-    # Map arguments to variable names used in the script
-    global OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, NTOMOS, VOI_SHAPE, VOI_OFFS, VOI_VSIZE
-    global MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST
-    global PROP_LIST_RAW, SURF_DEC
-    
     OUT_DIR = args.out_dir
     ROOT_PATH = args.root_path
     ROOT_PATH_ACTIN = args.root_path_actin
@@ -951,8 +956,8 @@ def main():
     # Display one file from each directory and its content, excluding "templates"
     # Display one file from each directory and its content, prioritizing specific files
 
-    display_sample_files_with_content(ROOT_PATH, exclude_dirs=["templates","in_mbs","in_helix"])
-    display_sample_files_with_content(ROOT_PATH_ACTIN, exclude_dirs=["templates","in_10A"])
+    # display_sample_files_with_content(ROOT_PATH, exclude_dirs=["templates","in_mbs","in_helix"])
+    # display_sample_files_with_content(ROOT_PATH_ACTIN, exclude_dirs=["templates","in_10A"])
     # define the output archive path
     OUTPUT_ARCHIVE = os.path.join(OUT_DIR, "input_files.tar.gz")
     OUTPUT_ARCHIVE_ACTIN = os.path.join(OUT_DIR, "input_files_mb_actin.tar.gz")
@@ -975,6 +980,14 @@ def main():
     # Preparing intermediate directories
     clean_dir(TEM_DIR)
     clean_dir(TOMOS_DIR)
+    
+    # Prepare global parameters
+    global_params = (
+        ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE, 
+        MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
+        PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TOMOS_DIR, 
+        USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP
+    )
 
     # Save labels table
     unit_lbl = 1
@@ -1017,7 +1030,7 @@ def main():
         random.seed(tomo_seed)
         np.random.seed(tomo_seed)
 
-        synth_tomo = generate_tomogram(global_params)
+        synth_tomo = generate_tomogram(tomod_id, global_params)
         # Update the set
         set_stomos.add_tomos(synth_tomo)
 

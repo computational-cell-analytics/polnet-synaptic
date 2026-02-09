@@ -1,5 +1,8 @@
 [tool.polnet]
 out_dir = "/mnt/lustre-grete/projects/nim00020/sage/data/simulation/integrated/testing/synapse"
+root_path_actin = "/mnt/lustre-grete/projects/nim00020/sage/source/polnet-synaptic/data"
+root_path_actin = "/mnt/lustre-grete/projects/nim00020/sage/source/polnet-synaptic/data/synapse"
+root_path_membrane = "/mnt/lustre-grete/projects/nim00020/sage/source/polnet-synaptic/data/synapse"
 ntomos = 3
 voi_vsize = 10 
 voi_shape = [630, 630, 184]
