@@ -18,17 +18,16 @@ Python package for generating synthetic datasets of the cellular context for Cry
 - IMOD can be used for MRC files visualization. Paraview can be used for VTK (.vtp) files visualization. Pandas is recommended for managing the CSV files.
 
 ### Installation procedure
-Here is how to get it installed:
 
-1. Download PolNet source code:
+1. Clone this repository:
     ```console
-    git clone https://github.com/anmartinezs/polnet.git
-    cd polnet
+    git clone https://github.com/computational-cell-analytics/polnet-synaptic.git
+    cd polnet-synaptic
     ```
-2. Create a conda virtual environment
+2. Create a conda environment:
     ```console
-    conda create --name polnet pip
-    conda activate polnet
+    conda create --name polnet-synaptic
+    conda activate 
     ```
 
 3. Install PolNet package with its requirements:
@@ -44,13 +43,6 @@ You can check all requirements in the **requirements.txt** file (JAX is optional
 
 The installation has been tested in Ubuntu 22.04 and Windows 10 and 11.
 
-## Usage
-
-Perfect — here’s a **GitHub-ready Markdown** version of your README section.
-You can copy-paste this directly into your `README.md` file, and it will render correctly on GitHub with proper headings, indentation, and code blocks:
-
----
-
 ## All Features Tomogram Simulation Script
 
 This repository contains a **Python script for generating tomograms** simulating various features such as membranes, helicoidal fibers, globular protein clusters, and more.
@@ -62,7 +54,7 @@ The script is **highly configurable** and allows users to specify parameters via
 
 **Simulates tomograms with:**
 
-* Membranes *(spherical, elliptical, toroidal)*
+* Membranes *(sphere, ellipse, toroid)*
 * Helicoidal fibers *(actin, microtubules)*
 * Globular protein clusters
 * Membrane-bound proteins
