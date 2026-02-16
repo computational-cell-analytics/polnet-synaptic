@@ -16,10 +16,10 @@ keywords = ["cryo electron tomogramphy", "synthetic data"]
 dependencies = [
     "numpy == 1.26.3",
     "scipy == 1.11.4",
-    "mrcfile == 1.4.3",
+    "mrcfile == 1.5.0",
     "jax == 0.4.23",
     "vtk == 9.3.0",
-    "pandas == 2.1.4",
+    "pandas == 2.3.3",
     "pynrrd == 1.0.0",
     "scikit-image == 0.22.0",
     "jupyter == 1.0.0",

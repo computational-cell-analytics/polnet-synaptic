@@ -262,9 +262,9 @@ def parse_args():
     parser.add_argument("--surf_dec", type=float, default=0.9,
                         help="Target reduction factor for surface decimation.")
     parser.add_argument("--mt_pmer_occ", type=float, default=False,
-                        help="Microtubule polymer occupany. If not provided, defaults to value specified in in_helix/mt.hns")
+                        help="Microtubule polymer occupany (percentage). If not provided, defaults to value specified in in_helix/mt.hns")
     parser.add_argument("--actin_pmer_occ", type=float, default=False,
-                        help="Actin polymer occupancy. If not provided, defaults to value specified in in_helix/actin.hns")
+                        help="Actin polymer occupancy (percentage). If not provided, defaults to value specified in in_helix/actin.hns")
     
     return parser.parse_args()
 
@@ -446,7 +446,7 @@ def generate_tomogram(tomod_id, global_params):
             if hasattr(hold_occ, "__len__"):
                 hold_occ = OccGen(hold_occ).gen_occupancy()
 
-        print(f"{p_id} protein_occupancy is {hold_occ}.")
+        print(f"{p_id} polymer occupancy is {hold_occ}%")
 
 
         # Helicoida random generation by type
@@ -601,7 +601,7 @@ def generate_tomogram(tomod_id, global_params):
             if hasattr(hold_occ, "__len__"):
                 hold_occ = OccGen(hold_occ).gen_occupancy()
             
-        print(f"{p_id} protein_occupancy is {hold_occ}")
+        print(f"{p_id} polymer occupancy is {hold_occ}%")
 
         # Genrate the SAWLC network associated to the input protein
         # Polymer parameters            
