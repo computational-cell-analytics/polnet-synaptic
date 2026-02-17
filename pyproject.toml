@@ -14,7 +14,7 @@ authors = [
 keywords = ["cryo electron tomogramphy", "synthetic data"]
 
 dependencies = [
-    "numpy == 1.26.3",
+    "numpy == 1.26.4",
     "scipy == 1.11.4",
     "mrcfile == 1.5.0",
     "jax == 0.4.23",
