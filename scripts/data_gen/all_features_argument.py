@@ -650,7 +650,6 @@ def generate_tomogram(tomod_id, global_params):
             model = lio.load_mrc(protein.get_mmer_svol())
         except FileNotFoundError:                
             model = lio.load_mrc(ROOT_PATH + "/" + protein.get_mmer_svol())
-        # model = lio.load_mrc(ROOT_PATH + '/' + protein.get_mmer_svol())
         model = lin_map(model, lb=0, ub=1)
         model = vol_cube(model)
         model_mask = model < protein.get_iso()            

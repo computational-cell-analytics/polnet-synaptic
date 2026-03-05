@@ -1,5 +1,5 @@
 MMER_ID = pdb_mb_1l4a
-MMER_SVOL = /mbz_align_shifts/1l4a_mbz_align_shift.mrc
+MMER_SVOL = /templates/mbz_align_shifts/1l4a_mbz_align_shift.mrc
 MMER_ISO = 0.046
 PMER_L = 1.2
 PMER_L_MAX = 3000.0
