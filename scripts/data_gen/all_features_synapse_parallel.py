@@ -213,7 +213,7 @@ def parse_args():
                         help="Disable custom logging. If True, output goes to stdout.")
     
     # Common tomogram settings
-    parser.add_argument("--root_path", type=str, default=os.path.realpath(os.getcwd() + "/../../data/default"),
+    parser.add_argument("--root_path", type=str, default=os.path.realpath(os.getcwd() + "/../../data/synapse"),
                         help="Root path for input data.")
     parser.add_argument("--root_path_actin", type=str, default= os.path.realpath(os.getcwd() + "/../../data/synapse"),
                         help="Root path for helix data.")
@@ -223,7 +223,7 @@ def parse_args():
     parser.add_argument("--voi_shape", type=int, nargs=3, default=[630, 630, 184],
                         help="Shape of the volume of interest (VOI) as (x, y, z).")
     parser.add_argument("--voi_vsize", type=float, default=10.0, help="Voxel size in Ångströms.")
-    parser.add_argument("--mmer_tries", type=int, default=1, help="Number of tries for monomer placement.")
+    parser.add_argument("--mmer_tries", type=int, default=10, help="Number of tries for monomer placement.")
     parser.add_argument("--pmer_tries", type=int, default=1000, help="Number of tries for polymer placement.")
     parser.add_argument("--seed", type=int, default=None, help="Seed for reproducible simulation.")
 
@@ -279,7 +279,7 @@ def parse_args():
                         help="Disable helix generation (default: False).")
     parser.add_argument("--disable_cytosolic_proteins", action="store_true", default=True,
                         help="Disable membrane proteins (default: True).")
-    parser.add_argument("--disable_mb_proteins", action="store_true", default=True,
+    parser.add_argument("--disable_mb_proteins", action="store_true", default=False,
                         help="Disable membrane proteins (default: True).")
     parser.add_argument("--prop_list_flag", action="store_true", default=False,
                         help="Use proportions list (default: False).")
