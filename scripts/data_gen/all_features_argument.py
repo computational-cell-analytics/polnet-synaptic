@@ -10,16 +10,13 @@ monomers
             + Polymers:
                 + Helicoidal fibers
                 + Globular protein clusters
-        - 3D reconstruction paramaters
     Output:
         - The simulated density maps
-        - The 3D reconstructed tomograms
-        - Micrograph stacks
         - Polydata files
         - STAR file mapping particle coordinates and orientations with tomograms
 """
 
-__author__ = "Antonio Martinez-Sanchez", "Yusuf Berk Oruc"
+__author__ = "Antonio Martinez-Sanchez", "Yusuf Berk Oruc", "Sage Martineau"
 
 import sys
 import csv
@@ -30,7 +27,6 @@ import math
 import numpy as np
 from polnet.utils import *
 from polnet import lio
-from polnet import tem
 from polnet import poly as pp
 from polnet.network import (
     NetSAWLC,
@@ -82,6 +78,40 @@ class LoggerWriter:
         if self.buffer:  # Write any remaining buffered content
             self.level(self.buffer.strip())
             self.buffer = ""
+
+def configure_logging(out_dir, log_dir, disable_logging=False):
+    #TODO setup logging
+    """Setup logging configuration"""
+
+    if disable_logging:
+        return
+
+    if log_dir is None:
+        log_dir = os.path.join(out_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+
+    job_id = os.environ.get("SLURM_JOB_ID", "default")
+    log_path = os.path.join(log_dir, f"simulation-output_{job_id}.log")
+    error_log_path = os.path.join(log_dir, f"simulation_{job_id}_error.log")
+
+    # Configure logging
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    if logger.hasHandlers():
+        logger.handlers.clear()
+    file_handler = logging.FileHandler(log_path)
+    file_handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(file_handler)
+    error_handler = logging.FileHandler(error_log_path)
+    error_handler.setLevel(logging.ERROR)
+    error_handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(error_handler)
+    sys.stdout = LoggerWriter(logger.info)
+    sys.stderr = LoggerWriter(logger.error)
+    logger.info("Logging initialized. Log file: %s", log_path)
+    logger.info("Error logging initialized. Error log file: %s", error_log_path)
+
+    return logger
 
 def save_input_files(root_path, output_file, exclude_dirs=None):
     """
@@ -181,6 +211,8 @@ def parse_args():
                         help="Output directory for generated tomograms.")
     parser.add_argument("--log_dir", type=str, default=None,
                         help="Directory for log files. Defaults to <out_dir>/logs.")
+    parser.add_argument("--disable_logging", action="store_true", default=False,
+                        help="Disable custom logging. If True, output goes to stdout.")
     
     # Common tomogram settings
     parser.add_argument("--root_path", type=str, default=os.path.realpath(os.getcwd() + "/../../data/default"),
@@ -247,7 +279,7 @@ def parse_args():
                         help="Disable membrane generation (default: False).")
     parser.add_argument("--disable_helix", action="store_true", default=False,
                         help="Disable helix generation (default: False).")
-    parser.add_argument("--disable_membrane_proteins", action="store_true", default=True,
+    parser.add_argument("--disable_mb_proteins", action="store_true", default=True,
                         help="Exclude membrane proteins (default: True).")
     parser.add_argument("--prop_list_flag", action="store_true", default=False,
                         help="Use proportions list (default: False).")
@@ -261,9 +293,9 @@ def parse_args():
                         help="Polymer occupancy list for proteins.")                    
     parser.add_argument("--surf_dec", type=float, default=0.9,
                         help="Target reduction factor for surface decimation.")
-    parser.add_argument("--mt_pmer_occ", type=float, default=False,
+    parser.add_argument("--mt_pmer_occ", type=float, default=None,
                         help="Microtubule polymer occupany (percentage). If not provided, defaults to value specified in in_helix/mt.hns")
-    parser.add_argument("--actin_pmer_occ", type=float, default=False,
+    parser.add_argument("--actin_pmer_occ", type=float, default=None,
                         help="Actin polymer occupancy (percentage). If not provided, defaults to value specified in in_helix/actin.hns")
     
     return parser.parse_args()
@@ -276,10 +308,18 @@ def generate_tomogram(tomod_id, global_params):
     
     # Unpack global parameters
     (ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE, 
-    MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
+    MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
     PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TOMOS_DIR, 
     USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP) = global_params
     
+    if SEED is not None:
+        tomo_seed = SEED + tomod_id
+        random.seed(tomo_seed)
+        np.random.seed(tomo_seed)
+    else:
+        random.seed()
+        np.random.seed() 
+              
     print("GENERATING TOMOGRAM NUMBER:", tomod_id)
     hold_time = time.time()
 
@@ -879,7 +919,7 @@ def main():
     ACTIN_PMER_OCC = args.actin_pmer_occ
 
     disable_membranes = args.disable_membranes
-    disable_membrane_proteins = args.disable_membrane_proteins
+    disable_mb_proteins = args.disable_mb_proteins
     disable_helix = args.disable_helix
     USE_PROP_LIST = args.prop_list_flag
     USE_PMER_OCC_LIST = args.pmer_occ_list_flag
@@ -900,7 +940,7 @@ def main():
 
     if disable_membranes:
         MEMBRANES_LIST = []
-    if disable_membrane_proteins:
+    if disable_mb_proteins:
         MB_PROTEINS_LIST = []
     if disable_helix:
         HELIX_LIST = []
@@ -919,38 +959,19 @@ def main():
     LBL_MP = 5
     # LBL_BR = 6
 
-    # Set up logging
-    log_dir = args.log_dir or os.path.join(OUT_DIR, "logs")
+    # Configure logging
     os.makedirs(OUT_DIR, exist_ok=True)
-    os.makedirs(log_dir, exist_ok=True)
-    job_id = os.environ.get("SLURM_JOB_ID", "default")
-    log_path = os.path.join(log_dir, f"simulation-output_{job_id}.log")
-    error_log_path = os.path.join(log_dir, f"simulation_{job_id}_error.log")
-    
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    if logger.hasHandlers():
-        logger.handlers.clear()
-    
-    file_handler = logging.FileHandler(log_path)
-    file_handler.setFormatter(logging.Formatter("%(message)s"))
-    logger.addHandler(file_handler)
-    
-    error_handler = logging.FileHandler(error_log_path)
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(logging.Formatter("%(message)s"))
-    logger.addHandler(error_handler)
-    
-    sys.stdout = LoggerWriter(logger.info)
-    sys.stderr = LoggerWriter(logger.error)
-    
-    logger.info("Logging initialized. Log file: %s", log_path)
-    logger.info("Error logging initialized. Error log file: %s", log_path)
-    
+    logger = configure_logging(args.out_dir, args.log_dir, args.disable_logging)
+
     # Print parsed arguments
-    logger.info("Parsed arguments:")
-    for arg, value in vars(args).items():
-        logger.info(f"{arg}: {value}")
+    if logger is not None:
+        logger.info("Parsed arguments:")
+        for arg, value in vars(args).items():
+            logger.info(f"{arg}: {value}")
+    else:
+        print("Parsed arguments:")
+        for arg, value in vars(args).items():
+            print(f"{arg}: {value}")
     
     ######preview the input files
     # Display one file from each directory and its content, excluding "templates"
@@ -968,23 +989,19 @@ def main():
 
     os.makedirs(OUT_DIR, exist_ok=True)
 
-    TEM_DIR = OUT_DIR + "/tem"
     TOMOS_DIR = OUT_DIR + "/tomos"
     os.makedirs(TOMOS_DIR, exist_ok=True)
-    os.makedirs(TEM_DIR, exist_ok=True)
     ##### Main procedure
-    np.random.seed(SEED)
     set_stomos = SetTomos()
     vx_um3 = (VOI_VSIZE * 1e-4) ** 3
 
     # Preparing intermediate directories
-    clean_dir(TEM_DIR)
     clean_dir(TOMOS_DIR)
     
     # Prepare global parameters
     global_params = (
         ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE, 
-        MMER_TRIES, PMER_TRIES, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
+        MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
         PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TOMOS_DIR, 
         USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP
     )
@@ -1024,11 +1041,6 @@ def main():
 
     # Loop for tomograms
     for tomod_id in tqdm(range(NTOMOS),desc="Generating tomograms"):
-        
-        tomo_seed = SEED + tomod_id
-
-        random.seed(tomo_seed)
-        np.random.seed(tomo_seed)
 
         synth_tomo = generate_tomogram(tomod_id, global_params)
         # Update the set
