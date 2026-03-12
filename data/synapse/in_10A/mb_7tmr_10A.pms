@@ -3,6 +3,6 @@ MMER_SVOL = /templates/mbz_align_shifts/7tmr_mbz_align_shift.mrc
 MMER_ISO = 0.046
 PMER_L = 1.2
 PMER_L_MAX = 3000.0
-PMER_OCC = 20 # %
+PMER_OCC = 5 # %
 PMER_OVER_TOL = 0.01
 PMER_REVERSE_NORMALS = True

@@ -10,6 +10,7 @@ monomers
             + Polymers:
                 + Helicoidal fibers
                 + Globular protein clusters
+        - 3D reconstruction paramaters
     Output:
         - The simulated density maps
         - Polydata files
@@ -27,6 +28,7 @@ import math
 import numpy as np
 from polnet.utils import *
 from polnet import lio
+from polnet import tem
 from polnet import poly as pp
 from polnet.network import (
     NetSAWLC,
@@ -78,21 +80,16 @@ class LoggerWriter:
         if self.buffer:  # Write any remaining buffered content
             self.level(self.buffer.strip())
             self.buffer = ""
-
-def configure_logging(out_dir, log_dir, disable_logging=False):
-    #TODO setup logging
+    
+def configure_logging(out_dir, tomo_index):
     """Setup logging configuration"""
 
-    if disable_logging:
-        return
-
-    if log_dir is None:
-        log_dir = os.path.join(out_dir, "logs")
+    log_dir = os.path.join(out_dir, "logs")
     os.makedirs(log_dir, exist_ok=True)
 
     job_id = os.environ.get("SLURM_JOB_ID", "default")
-    log_path = os.path.join(log_dir, f"simulation-output_{job_id}.log")
-    error_log_path = os.path.join(log_dir, f"simulation_{job_id}_error.log")
+    log_path = os.path.join(log_dir, f"simulation_{job_id}_{tomo_index}.log")
+    error_log_path = os.path.join(log_dir, f"simulation_{job_id}_{tomo_index}_error.log")
 
     # Configure logging
     logger = logging.getLogger()
@@ -108,10 +105,11 @@ def configure_logging(out_dir, log_dir, disable_logging=False):
     logger.addHandler(error_handler)
     sys.stdout = LoggerWriter(logger.info)
     sys.stderr = LoggerWriter(logger.error)
-    logger.info("Logging initialized. Log file: %s", log_path)
-    logger.info("Error logging initialized. Error log file: %s", error_log_path)
 
-    return logger
+    logger.info(f"Logging initialized for tomogram {tomo_index}.")
+    logger.info(f"Output log: {log_path}.")
+    logger.info(f"Error log: {error_log_path}.")
+
 
 def save_input_files(root_path, output_file, exclude_dirs=None):
     """
@@ -209,32 +207,28 @@ def parse_args():
     # Logging and output directories
     parser.add_argument("--out_dir", type=str, default="./out",
                         help="Output directory for generated tomograms.")
-    parser.add_argument("--log_dir", type=str, default=None,
-                        help="Directory for log files. Defaults to <out_dir>/logs.")
     parser.add_argument("--disable_logging", action="store_true", default=False,
                         help="Disable custom logging. If True, output goes to stdout.")
     
     # Common tomogram settings
-    parser.add_argument("--root_path", type=str, default=os.path.realpath(os.getcwd() + "/../../data/default"),
+    parser.add_argument("--root_path", type=str, default=os.path.realpath(os.getcwd() + "/../../data/synapse"),
                         help="Root path for input data.")
-    parser.add_argument("--root_path_actin", type=str, default= os.path.realpath(os.getcwd() + "/../../data/default"),
+    parser.add_argument("--root_path_actin", type=str, default= os.path.realpath(os.getcwd() + "/../../data/synapse"),
                         help="Root path for helix data.")
-    parser.add_argument("--root_path_membrane", type=str, default = os.path.realpath(os.getcwd() + "/../../data/default"),
+    parser.add_argument("--root_path_membrane", type=str, default = os.path.realpath(os.getcwd() + "/../../data/synapse"),
                         help="Root path for membrane data.")
-    parser.add_argument("--ntomos", type=int, default=30, help="Number of tomograms to simulate.")
     parser.add_argument("--voi_shape", type=int, nargs=3, default=[630, 630, 184],
                         help="Shape of the volume of interest (VOI) as (x, y, z).")
-    #parser.add_argument("--voi_offs", type=int, nargs=6, default=[4, 996, 4, 996, 4, 246],
-    #                    help="Offsets for the VOI as (x_min, x_max, y_min, y_max, z_min, z_max).")
     parser.add_argument("--voi_vsize", type=float, default=10.0, help="Voxel size in Ångströms.")
-    parser.add_argument("--mmer_tries", type=int, default=1, help="Number of tries for monomer placement.")
+    parser.add_argument("--mmer_tries", type=int, default=10, help="Number of tries for monomer placement.")
     parser.add_argument("--pmer_tries", type=int, default=1000, help="Number of tries for polymer placement.")
     parser.add_argument("--seed", type=int, default=None, help="Seed for reproducible simulation.")
+
     # Feature lists
     parser.add_argument("--membranes_list", type=str, nargs="+", default=[
-        "in_mbs/sphere.mbs",
+        #"in_mbs/sphere.mbs",
         "in_mbs/ellipse.mbs",
-        "in_mbs/toroid.mbs"
+        #"in_mbs/toroid.mbs"
     ], help="List of membrane files.")
     parser.add_argument("--helix_list", type=str, nargs="+", default=[
         "in_helix/mt.hns",
@@ -263,15 +257,16 @@ def parse_args():
         #"in_10A/1bxn_10A.pns",
     ], help="List of protein files.")
     parser.add_argument("--mb_proteins_list", type=str, nargs="+", default=[
-        #"in_10A/mb_6rd4_10A.pms",
-        #"in_10A/mb_5wek_10A.pms",
-        #"in_10A/mb_4pe5_10A.pms",
-        #"in_10A/mb_5ide_10A.pms",
-        #"in_10A/mb_5gjv_10A.pms",
-        #"in_10A/mb_5kxi_10A.pms",
-        #"in_10A/mb_5tj6_10A.pms",
-        #"in_10A/mb_5tqq_10A.pms",
-        #"in_10A/mb_5vai_10A.pms",
+        "in_10A/mb_7tmr_10A.pms",
+        "in_10A/mb_1l4a_10A.pms",
+        "in_10A/mb_7udb_10A.pms",
+        "in_10A/mb_8sbe_10A.pms",
+        "in_10A/mb_9brz_10A.pms",
+        "in_10A/mb_VMAT_10A.pms",
+        "in_10A/mb_VGLUT_10A.pms",
+        "in_10A/mb_Synaptotagmin_10A.pms",
+        "in_10A/mb_Synaptophysin_10A.pms",
+        "in_10A/mb_rab3_10A.pms",
     ], help="List of membrane protein files.")
 
     # Flags for feature inclusion
@@ -279,8 +274,10 @@ def parse_args():
                         help="Disable membrane generation (default: False).")
     parser.add_argument("--disable_helix", action="store_true", default=False,
                         help="Disable helix generation (default: False).")
-    parser.add_argument("--disable_mb_proteins", action="store_true", default=True,
-                        help="Exclude membrane proteins (default: True).")
+    parser.add_argument("--disable_cytosolic_proteins", action="store_true", default=True,
+                        help="Disable membrane proteins (default: True).")
+    parser.add_argument("--disable_mb_proteins", action="store_true", default=False,
+                        help="Disable membrane proteins (default: True).")
     parser.add_argument("--prop_list_flag", action="store_true", default=False,
                         help="Use proportions list (default: False).")
     parser.add_argument("--pmer_occ_list_flag", action="store_true", default=False,
@@ -307,19 +304,23 @@ def generate_tomogram(tomo_index, global_params):
     """
     
     # Unpack global parameters
-    (ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE, 
-    MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-    PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TOMOS_DIR, 
-    USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP) = global_params
-    
+    (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE, 
+     MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
+     PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, USE_PMER_OCC_LIST, 
+     LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP) = global_params
+
     if SEED is not None:
         tomo_seed = SEED + tomo_index
         random.seed(tomo_seed)
         np.random.seed(tomo_seed)
     else:
         random.seed()
-        np.random.seed() 
-              
+        np.random.seed()
+
+    TOMOS_DIR = OUT_DIR + "/tomos"
+    # configure logging per tomogram
+    configure_logging(OUT_DIR, tomo_index)
+
     print("GENERATING TOMOGRAM NUMBER:", tomo_index)
     hold_time = time.time()
 
@@ -349,7 +350,7 @@ def generate_tomogram(tomo_index, global_params):
     voi_voxels = voi.sum()
     tomo_lbls = np.zeros(shape=VOI_SHAPE, dtype=np.float32)
     tomo_den = np.zeros(shape=voi.shape, dtype=np.float32)
-    #synth_tomo = SynthTomo()
+
     poly_vtp, mbs_vtp, skel_vtp = None, None, None
     entity_id = 1
     mb_voxels, ac_voxels, mt_voxels, cp_voxels, mp_voxels = 0, 0, 0, 0, 0
@@ -357,7 +358,14 @@ def generate_tomogram(tomo_index, global_params):
 
     # Membranes loop
     count_mbs, hold_den = 0, None
+    
+    # Max number of synaptic vesciles to simulate
+    MAX_MEMBRANES = 200
+
     for p_id, p_file in tqdm(enumerate(MEMBRANES_LIST),desc="Generating membranes"):
+        if count_mbs >= MAX_MEMBRANES:
+            print(f"Reached maximum number of membranes ({MAX_MEMBRANES}), stopping membrane simulation.")
+            break
 
         print("\tPROCESSING FILE:", p_file)
 
@@ -372,8 +380,8 @@ def generate_tomogram(tomo_index, global_params):
 
         # Membrane random generation by type
         param_rg = (
-            memb.get_min_rad(),
-            math.sqrt(3) * max(VOI_SHAPE) * VOI_VSIZE,
+            200, # min radius 
+            250, # max radius
             memb.get_max_ecc(),
         )
         if memb.get_type() == "sphere":
@@ -565,13 +573,6 @@ def generate_tomogram(tomo_index, global_params):
             print("ERROR: Helicoidal type", helix.get_type(), "not recognized!")
             sys.exit()
 
-        # # DEBUG
-        # lio.save_vtp(funit.get_vtp(), ROOT_PATH + '/hold_funit.vtp')
-        # lio.save_vtp(net_helix.get_vtp(), ROOT_PATH + '/hold.vtp')
-
-        # Density tomogram updating
-        # voi = net_helix.get_voi()            
-        # # tomo_den = np.maximum(tomo_den, net_helix.get_tomo())
         model_mask = model_svol < 0.05
         # off = .5 * np.asarray(model_svol.shape) - center
         net_helix.insert_density_svol(
@@ -650,6 +651,7 @@ def generate_tomogram(tomo_index, global_params):
             model = lio.load_mrc(protein.get_mmer_svol())
         except FileNotFoundError:                
             model = lio.load_mrc(ROOT_PATH + "/" + protein.get_mmer_svol())
+        # model = lio.load_mrc(ROOT_PATH + '/' + protein.get_mmer_svol())
         model = lin_map(model, lb=0, ub=1)
         model = vol_cube(model)
         model_mask = model < protein.get_iso()            
@@ -809,15 +811,8 @@ def generate_tomogram(tomo_index, global_params):
                 tries_mmer=MMER_TRIES,
                 tries_pmer=PMER_TRIES,
             )
-            # net_sawlc = NetSAWLCInter(voi, VOI_VSIZE, protein.get_pmer_l() * surf_diam, model_surf, protein
-            # get_pmer_l_max(),
-            #                      pol_l_generator, protein.get_pmer_occ(), protein.get_pmer_over_tol(), poly=mb_poly,
-            #                      svol=model < protein.get_iso())
-            net_sawlc.build_network()                
-            # voi = net_sawlc.get_voi()
 
-            # lio.write_mrc(voi.astype(np.float32), ROOT_PATH + '/hold_voi.mrc')
-            # lio.write_mrc(set_mbs.get_tomo().astype(np.float32), ROOT_PATH + '/hold_den.mrc')
+            net_sawlc.build_network()                
 
             # Density tomogram updating
             net_sawlc.insert_density_svol(model_mask, voi, VOI_VSIZE, merge="min")                
@@ -900,9 +895,7 @@ def main():
     ROOT_PATH = args.root_path
     ROOT_PATH_ACTIN = args.root_path_actin
     ROOT_PATH_MEMBRANE = args.root_path_membrane
-    NTOMOS = args.ntomos
     VOI_SHAPE = tuple(args.voi_shape)
-    #VOI_OFFS = tuple(args.voi_offs)
     VOI_VSIZE = args.voi_vsize
     MMER_TRIES = args.mmer_tries
     PMER_TRIES = args.pmer_tries
@@ -918,8 +911,9 @@ def main():
     ACTIN_PMER_OCC = args.actin_pmer_occ
 
     disable_membranes = args.disable_membranes
-    disable_mb_proteins = args.disable_mb_proteins
     disable_helix = args.disable_helix
+    disable_cytosolic_proteins = args.disable_cytosolic_proteins
+    disable_mb_proteins = args.disable_mb_proteins
     USE_PROP_LIST = args.prop_list_flag
     USE_PMER_OCC_LIST = args.pmer_occ_list_flag
 
@@ -939,10 +933,12 @@ def main():
 
     if disable_membranes:
         MEMBRANES_LIST = []
-    if disable_mb_proteins:
-        MB_PROTEINS_LIST = []
     if disable_helix:
         HELIX_LIST = []
+    if disable_cytosolic_proteins:
+        PROTEINS_LIST = []
+    if disable_mb_proteins:
+        MB_PROTEINS_LIST = []
 
     VOI_OFFS = (
         (4, VOI_SHAPE[0] - 4),
@@ -958,19 +954,13 @@ def main():
     LBL_MP = 5
     # LBL_BR = 6
 
-    # Configure logging
+    # Set output dir
     os.makedirs(OUT_DIR, exist_ok=True)
-    logger = configure_logging(args.out_dir, args.log_dir, args.disable_logging)
 
     # Print parsed arguments
-    if logger is not None:
-        logger.info("Parsed arguments:")
-        for arg, value in vars(args).items():
-            logger.info(f"{arg}: {value}")
-    else:
-        print("Parsed arguments:")
-        for arg, value in vars(args).items():
-            print(f"{arg}: {value}")
+    print("Parsed arguments:")
+    for arg, value in vars(args).items():
+        print(f"{arg}: {value}")
     
     ######preview the input files
     # Display one file from each directory and its content, excluding "templates"
@@ -994,17 +984,17 @@ def main():
     set_stomos = SetTomos()
     vx_um3 = (VOI_VSIZE * 1e-4) ** 3
 
+    # TODO remove
     # Preparing intermediate directories
-    clean_dir(TOMOS_DIR)
+    #clean_dir(TOMOS_DIR)
     
     # Prepare global parameters
-    global_params = (
-        ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE, 
-        MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-        PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TOMOS_DIR, 
-        USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP
-    )
-
+    global_params = (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, 
+                     VOI_SHAPE, VOI_OFFS, VOI_VSIZE, MMER_TRIES, PMER_TRIES, 
+                     SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
+                     PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, 
+                     USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP)
+    
     # Save labels table
     unit_lbl = 1
     header_lbl_tab = ["MODEL", "LABEL"]
@@ -1037,19 +1027,13 @@ def main():
             )
             unit_lbl += 1
 
-
-    # Loop for tomograms
-    for tomo_index in tqdm(range(NTOMOS),desc="Generating tomograms"):
-
-        synth_tomo = generate_tomogram(tomo_index, global_params)
-        # Update the set
-        set_stomos.add_tomos(synth_tomo)
-
-
-    ##Storing tomograms CSV file
-    set_stomos.save_csv(OUT_DIR + "/tomos_motif_list.csv")
+    tomo_index = int(os.environ.get("SLURM_ARRAY_TASK_ID"))
+    synth_tomo = generate_tomogram(tomo_index, global_params)
+    
+    # Storing tomograms CSV file
+    set_stomos.save_csv(OUT_DIR + f"/tomos_motif_list_{tomo_index}.csv")
     # Path to the CSV file
-    csv_file_path = os.path.join(OUT_DIR, "tomos_motif_list.csv")
+    csv_file_path = os.path.join(OUT_DIR, f"tomos_motif_list_{tomo_index}.csv")
 
     # Display statistics from the CSV file
     display_statistics_from_csv(csv_file_path)
