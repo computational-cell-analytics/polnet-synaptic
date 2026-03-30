@@ -983,10 +983,6 @@ def main():
     ##### Main procedure
     set_stomos = SetTomos()
     vx_um3 = (VOI_VSIZE * 1e-4) ** 3
-
-    # TODO remove
-    # Preparing intermediate directories
-    #clean_dir(TOMOS_DIR)
     
     # Prepare global parameters
     global_params = (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, 
