@@ -79,20 +79,14 @@ class LoggerWriter:
             self.level(self.buffer.strip())
             self.buffer = ""
 
-def configure_logging(out_dir, log_dir, disable_logging=False):
-    #TODO setup logging
+def configure_logging(out_dir, tomo_index):
     """Setup logging configuration"""
-
-    if disable_logging:
-        return
-
-    if log_dir is None:
-        log_dir = os.path.join(out_dir, "logs")
+    log_dir = os.path.join(out_dir, "logs")
     os.makedirs(log_dir, exist_ok=True)
 
     job_id = os.environ.get("SLURM_JOB_ID", "default")
-    log_path = os.path.join(log_dir, f"simulation-output_{job_id}.log")
-    error_log_path = os.path.join(log_dir, f"simulation_{job_id}_error.log")
+    log_path = os.path.join(log_dir, f"simulation_{job_id}_{tomo_index}.log")
+    error_log_path = os.path.join(log_dir, f"simulation_{job_id}_{tomo_index}_error.log")
 
     # Configure logging
     logger = logging.getLogger()
@@ -108,10 +102,9 @@ def configure_logging(out_dir, log_dir, disable_logging=False):
     logger.addHandler(error_handler)
     sys.stdout = LoggerWriter(logger.info)
     sys.stderr = LoggerWriter(logger.error)
-    logger.info("Logging initialized. Log file: %s", log_path)
-    logger.info("Error logging initialized. Error log file: %s", error_log_path)
-
-    return logger
+    logger.info(f"Logging initialized for tomogram {tomo_index}.")
+    logger.info(f"Output log: {log_path}.")
+    logger.info(f"Error log: {error_log_path}.")
 
 def save_input_files(root_path, output_file, exclude_dirs=None):
     """
@@ -209,11 +202,6 @@ def parse_args():
     # Logging and output directories
     parser.add_argument("--out_dir", type=str, default="./out",
                         help="Output directory for generated tomograms.")
-    parser.add_argument("--log_dir", type=str, default=None,
-                        help="Directory for log files. Defaults to <out_dir>/logs.")
-    parser.add_argument("--disable_logging", action="store_true", default=False,
-                        help="Disable custom logging. If True, output goes to stdout.")
-    
     # Common tomogram settings
     parser.add_argument("--root_path", type=str, default=os.path.realpath(os.getcwd() + "/../../data/default"),
                         help="Root path for input data.")
@@ -221,7 +209,6 @@ def parse_args():
                         help="Root path for helix data.")
     parser.add_argument("--root_path_membrane", type=str, default = os.path.realpath(os.getcwd() + "/../../data/default"),
                         help="Root path for membrane data.")
-    parser.add_argument("--ntomos", type=int, default=30, help="Number of tomograms to simulate.")
     parser.add_argument("--voi_shape", type=int, nargs=3, default=[630, 630, 184],
                         help="Shape of the volume of interest (VOI) as (x, y, z).")
     #parser.add_argument("--voi_offs", type=int, nargs=6, default=[4, 996, 4, 996, 4, 246],
@@ -279,6 +266,8 @@ def parse_args():
                         help="Disable membrane generation (default: False).")
     parser.add_argument("--disable_helix", action="store_true", default=False,
                         help="Disable helix generation (default: False).")
+    parser.add_argument("--disable_cytosolic_proteins", action="store_true", default=False,
+                        help="Disable cytosolic proteins (default: False).")
     parser.add_argument("--disable_mb_proteins", action="store_true", default=True,
                         help="Exclude membrane proteins (default: True).")
     parser.add_argument("--prop_list_flag", action="store_true", default=False,
@@ -307,11 +296,14 @@ def generate_tomogram(tomo_index, global_params):
     """
     
     # Unpack global parameters
-    (ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE, 
-    MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-    PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TOMOS_DIR, 
-    USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP) = global_params
-    
+    (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE,
+     MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
+     PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, USE_PMER_OCC_LIST,
+     LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP) = global_params
+
+    TOMOS_DIR = OUT_DIR + "/tomos"
+    configure_logging(OUT_DIR, tomo_index)
+
     if SEED is not None:
         tomo_seed = SEED + tomo_index
         random.seed(tomo_seed)
@@ -900,7 +892,6 @@ def main():
     ROOT_PATH = args.root_path
     ROOT_PATH_ACTIN = args.root_path_actin
     ROOT_PATH_MEMBRANE = args.root_path_membrane
-    NTOMOS = args.ntomos
     VOI_SHAPE = tuple(args.voi_shape)
     #VOI_OFFS = tuple(args.voi_offs)
     VOI_VSIZE = args.voi_vsize
@@ -918,6 +909,7 @@ def main():
     ACTIN_PMER_OCC = args.actin_pmer_occ
 
     disable_membranes = args.disable_membranes
+    disable_cytosolic_proteins = args.disable_cytosolic_proteins
     disable_mb_proteins = args.disable_mb_proteins
     disable_helix = args.disable_helix
     USE_PROP_LIST = args.prop_list_flag
@@ -939,6 +931,8 @@ def main():
 
     if disable_membranes:
         MEMBRANES_LIST = []
+    if disable_cytosolic_proteins:
+        PROTEINS_LIST = []
     if disable_mb_proteins:
         MB_PROTEINS_LIST = []
     if disable_helix:
@@ -958,19 +952,12 @@ def main():
     LBL_MP = 5
     # LBL_BR = 6
 
-    # Configure logging
+    # Set output dir
     os.makedirs(OUT_DIR, exist_ok=True)
-    logger = configure_logging(args.out_dir, args.log_dir, args.disable_logging)
 
-    # Print parsed arguments
-    if logger is not None:
-        logger.info("Parsed arguments:")
-        for arg, value in vars(args).items():
-            logger.info(f"{arg}: {value}")
-    else:
-        print("Parsed arguments:")
-        for arg, value in vars(args).items():
-            print(f"{arg}: {value}")
+    print("Parsed arguments:")
+    for arg, value in vars(args).items():
+        print(f"{arg}: {value}")
     
     ######preview the input files
     # Display one file from each directory and its content, excluding "templates"
@@ -992,18 +979,16 @@ def main():
     os.makedirs(TOMOS_DIR, exist_ok=True)
     ##### Main procedure
     set_stomos = SetTomos()
-    vx_um3 = (VOI_VSIZE * 1e-4) ** 3
 
     # Preparing intermediate directories
-    clean_dir(TOMOS_DIR)
-    
+    #clean_dir(TOMOS_DIR)
+
     # Prepare global parameters
-    global_params = (
-        ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE, 
-        MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-        PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TOMOS_DIR, 
-        USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP
-    )
+    global_params = (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE,
+                     VOI_SHAPE, VOI_OFFS, VOI_VSIZE, MMER_TRIES, PMER_TRIES,
+                     SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
+                     PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC,
+                     USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP)
 
     # Save labels table
     unit_lbl = 1
@@ -1038,18 +1023,13 @@ def main():
             unit_lbl += 1
 
 
-    # Loop for tomograms
-    for tomo_index in tqdm(range(NTOMOS),desc="Generating tomograms"):
+    tomo_index = int(os.environ.get("SLURM_ARRAY_TASK_ID"))
+    synth_tomo = generate_tomogram(tomo_index, global_params)
+    set_stomos.add_tomos(synth_tomo)
 
-        synth_tomo = generate_tomogram(tomo_index, global_params)
-        # Update the set
-        set_stomos.add_tomos(synth_tomo)
-
-
-    ##Storing tomograms CSV file
-    set_stomos.save_csv(OUT_DIR + "/tomos_motif_list.csv")
-    # Path to the CSV file
-    csv_file_path = os.path.join(OUT_DIR, "tomos_motif_list.csv")
+    # Storing per-tomogram CSV file
+    set_stomos.save_csv(OUT_DIR + f"/tomos_motif_list_{tomo_index}.csv")
+    csv_file_path = os.path.join(OUT_DIR, f"tomos_motif_list_{tomo_index}.csv")
 
     # Display statistics from the CSV file
     display_statistics_from_csv(csv_file_path)
