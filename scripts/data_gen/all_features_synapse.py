@@ -1025,7 +1025,8 @@ def main():
 
     tomo_index = int(os.environ.get("SLURM_ARRAY_TASK_ID"))
     synth_tomo = generate_tomogram(tomo_index, global_params)
-    
+    set_stomos.add_tomos(synth_tomo)
+
     # Storing tomograms CSV file
     set_stomos.save_csv(OUT_DIR + f"/tomos_motif_list_{tomo_index}.csv")
     # Path to the CSV file
