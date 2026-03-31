@@ -670,16 +670,16 @@ def generate_tomogram(tomo_index, global_params):
             assert len(PROP_LIST) == len(PROTEINS_LIST)
             pol_s_generator = SGenProp(PROP_LIST)            
         net_sawlc = NetSAWLC(
-            voi,
-            VOI_VSIZE,                
-            protein.get_pmer_l() * surf_diam,
-            model_surf,
-            protein.get_pmer_l_max(),
-            pol_l_generator,                
-            hold_occ,
-            protein.get_pmer_over_tol(),
-            poly=None,
-            svol=model < protein.get_iso(),                
+            voi = voi,
+            v_size = VOI_VSIZE,                
+            l_length = protein.get_pmer_l() * surf_diam,
+            m_surf = model_surf,
+            max_p_length = protein.get_pmer_l_max(),
+            gne_pol_lengths = pol_l_generator,                
+            hold_occ, # where does this come from
+            over_tolerance = protein.get_pmer_over_tol(),
+            poly = None,
+            svol = model < protein.get_iso(),                
             tries_mmer=MMER_TRIES,
             tries_pmer=PMER_TRIES,
         )
