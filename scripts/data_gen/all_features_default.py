@@ -917,7 +917,8 @@ def main():
 
     if USE_PROP_LIST:
         assert len(PROP_LIST_RAW) == len(PROTEINS_LIST)
-        PROP_LIST = PROP_LIST_RAW / np.sum(PROP_LIST_RAW)  
+        PROP_LIST = PROP_LIST_RAW / np.sum(PROP_LIST_RAW)
+        PROP_LIST[-1] = 1.0 - np.sum(PROP_LIST[:-1])
     else:
         PROP_LIST = None
 
