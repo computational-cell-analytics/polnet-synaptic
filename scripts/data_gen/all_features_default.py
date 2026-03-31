@@ -1028,8 +1028,10 @@ def main():
     set_stomos.add_tomos(synth_tomo)
 
     # Storing per-tomogram CSV file
-    set_stomos.save_csv(OUT_DIR + f"/tomos_motif_list_{tomo_index}.csv")
-    csv_file_path = os.path.join(OUT_DIR, f"tomos_motif_list_{tomo_index}.csv")
+    motif_lists_dir = os.path.join(OUT_DIR, "motif_lists")
+    os.makedirs(motif_lists_dir, exist_ok=True)
+    csv_file_path = os.path.join(motif_lists_dir, f"tomo_motif_list_{tomo_index}.csv")
+    set_stomos.save_csv(csv_file_path)
 
     # Display statistics from the CSV file
     display_statistics_from_csv(csv_file_path)
