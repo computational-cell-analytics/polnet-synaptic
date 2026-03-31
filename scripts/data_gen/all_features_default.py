@@ -270,14 +270,10 @@ def parse_args():
                         help="Disable cytosolic proteins (default: False).")
     parser.add_argument("--disable_mb_proteins", action="store_true", default=True,
                         help="Exclude membrane proteins (default: True).")
-    parser.add_argument("--prop_list_flag", action="store_true", default=False,
-                        help="Use proportions list (default: False).")
     parser.add_argument("--pmer_occ_list_flag", action="store_true", default=False,
                         help="Use pmer occupancy list (default: False).")
 
-    # Proportions and surface decimation
-    parser.add_argument("--prop_list_raw", type=int, nargs="+", default=None,
-                        help="Raw proportions list for proteins.")
+    # Surface decimation and occupancy
     parser.add_argument("--pmer_occ_list", type=float, nargs="+", default=None,
                         help="Polymer occupancy list for proteins.")                    
     parser.add_argument("--surf_dec", type=float, default=0.9,
@@ -298,7 +294,7 @@ def generate_tomogram(tomo_index, global_params):
     # Unpack global parameters
     (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE,
      MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-     PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, USE_PMER_OCC_LIST,
+     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, USE_PMER_OCC_LIST,
      LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP) = global_params
 
     TOMOS_DIR = OUT_DIR + "/tomos"
@@ -664,22 +660,18 @@ def generate_tomogram(tomo_index, global_params):
 
         # Network generation
         pol_l_generator = PGenHelixFiber()
-        if PROP_LIST is None:                
-            pol_s_generator = SGenUniform()
-        else:
-            assert len(PROP_LIST) == len(PROTEINS_LIST)
-            pol_s_generator = SGenProp(PROP_LIST)            
+        pol_s_generator = SGenUniform()
         net_sawlc = NetSAWLC(
-            voi = voi,
-            v_size = VOI_VSIZE,                
-            l_length = protein.get_pmer_l() * surf_diam,
-            m_surf = model_surf,
-            max_p_length = protein.get_pmer_l_max(),
-            gne_pol_lengths = pol_l_generator,                
-            hold_occ, # where does this come from
-            over_tolerance = protein.get_pmer_over_tol(),
-            poly = None,
-            svol = model < protein.get_iso(),                
+            voi,
+            VOI_VSIZE,
+            protein.get_pmer_l() * surf_diam,
+            model_surf,
+            protein.get_pmer_l_max(),
+            pol_l_generator,
+            hold_occ,
+            over_tolerance=protein.get_pmer_over_tol(),
+            poly=None,
+            svol=model < protein.get_iso(),
             tries_mmer=MMER_TRIES,
             tries_pmer=PMER_TRIES,
         )
@@ -902,7 +894,6 @@ def main():
     HELIX_LIST = args.helix_list
     PROTEINS_LIST = args.proteins_list
     MB_PROTEINS_LIST = args.mb_proteins_list
-    PROP_LIST_RAW = np.array(args.prop_list_raw)
     PMER_OCC_LIST = np.array(args.pmer_occ_list)
     SURF_DEC = args.surf_dec
     MT_PMER_OCC = args.mt_pmer_occ
@@ -912,18 +903,7 @@ def main():
     disable_cytosolic_proteins = args.disable_cytosolic_proteins
     disable_mb_proteins = args.disable_mb_proteins
     disable_helix = args.disable_helix
-    USE_PROP_LIST = args.prop_list_flag
     USE_PMER_OCC_LIST = args.pmer_occ_list_flag
-
-    if USE_PROP_LIST:
-        assert len(PROP_LIST_RAW) == len(PROTEINS_LIST)
-        PROP_LIST = PROP_LIST_RAW / np.sum(PROP_LIST_RAW)
-        PROP_LIST[-1] = 1.0 - np.sum(PROP_LIST[:-1])
-    else:
-        PROP_LIST = None
-
-    if PROP_LIST is not None:
-        assert sum(PROP_LIST) == 1
 
     if USE_PMER_OCC_LIST:
         assert len(PMER_OCC_LIST) == len(PROTEINS_LIST)
@@ -988,7 +968,7 @@ def main():
     global_params = (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE,
                      VOI_SHAPE, VOI_OFFS, VOI_VSIZE, MMER_TRIES, PMER_TRIES,
                      SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-                     PROP_LIST, PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC,
+                     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC,
                      USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP)
 
     # Save labels table
