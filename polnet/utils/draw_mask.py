@@ -91,9 +91,7 @@ def draw_instances(
         all_cz, all_cy, all_cx = [], [], []
 
         for c in coordinate:
-            cz, cy, cx = draw_mask(
-                r=r, c=c, label_mask=label_mask, segment_shape="s"
-            )
+            cz, cy, cx = draw_mask(r=r, c=c, label_mask=label_mask)
             all_cz.append(cz)
             all_cy.append(cy)
             all_cx.append(cx)
