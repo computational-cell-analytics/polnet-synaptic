@@ -6,7 +6,7 @@ Original authors: Robert Kiewisz, Tristan Bepler (MIT License 2021-2025)
 """
 
 from math import pow, sqrt
-from typing import Tuple, Iterable
+from typing import Tuple, Iterable, Union
 
 import numpy as np
 
@@ -186,6 +186,28 @@ def draw_sphere(
 
     return zyx[:, 0], zyx[:, 1], zyx[:, 2]
 
+def interpolation(points: np.ndarray) -> np.ndarray:
+    """
+    Performs 3D interpolation for XYZ coordinates using a given interpolation
+    generator over sequential point pairs, and appends the last point to the
+    output in integer format. The function creates a continuous series of
+    interpolated points connecting all input coordinates.
+
+    :param points: An array of shape (N, 3) representing a sequence of 3D points.
+
+    :return: An array of shape (M, 3) containing the interpolated 3D coordinates,
+             where M >= N due to newly generated intermediate points.
+    """
+    new_coord = []
+    for i in range(0, len(points) - 1):
+        """3D interpolation for XYZ dimension"""
+        new_coord.append(list(interpolate_generator(points[i : i + 2, :])))
+
+    # Append last point
+    new_coord.append(list(np.round(points[-1, :]).astype(np.int32)))
+
+    return np.vstack(new_coord)
+
 def interpolate_generator(points: np.ndarray) -> Iterable:
     """
     Generates interpolated points between two given 2D or 3D points. The function
@@ -321,26 +343,3 @@ def interpolate_generator(points: np.ndarray) -> Iterable:
             yield x, y, z
         else:
             yield x, y
-
-
-def interpolation(points: np.ndarray) -> np.ndarray:
-    """
-    Performs 3D interpolation for XYZ coordinates using a given interpolation
-    generator over sequential point pairs, and appends the last point to the
-    output in integer format. The function creates a continuous series of
-    interpolated points connecting all input coordinates.
-
-    :param points: An array of shape (N, 3) representing a sequence of 3D points.
-
-    :return: An array of shape (M, 3) containing the interpolated 3D coordinates,
-             where M >= N due to newly generated intermediate points.
-    """
-    new_coord = []
-    for i in range(0, len(points) - 1):
-        """3D interpolation for XYZ dimension"""
-        new_coord.append(list(interpolate_generator(points[i : i + 2, :])))
-
-    # Append last point
-    new_coord.append(list(np.round(points[-1, :]).astype(np.int32)))
-
-    return np.vstack(new_coord)
