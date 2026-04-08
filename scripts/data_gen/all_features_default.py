@@ -26,6 +26,7 @@ import tarfile
 import math
 import numpy as np
 from polnet.utils import *
+from polnet.utils.draw_mask import draw_instances
 from polnet import lio
 from polnet import poly as pp
 from polnet.network import (
@@ -861,6 +862,13 @@ def generate_tomogram(tomo_index, global_params):
     print(
         f"\t\t\t+Time for generation: {(time.time() - hold_time) / 60} mins"
     )
+
+    # build actin segmentation mask
+    actin_motifs = [m for m in synth_tomo.get_motif_list() if m[2] == "actin"]
+    if actin_motifs:
+        coords = np.array(
+
+        )
 
     # Storing simulated density results
     tomo_den_out = TOMOS_DIR + "/tomo_den_" + str(tomo_index) + ".mrc"        
