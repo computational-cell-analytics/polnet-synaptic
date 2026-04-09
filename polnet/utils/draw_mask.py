@@ -15,7 +15,7 @@ def draw_instances(
     mask_size: Union[list, tuple],
     coordinate: np.ndarray,
     pixel_size: float,
-    circle_size=250,
+    circle_size=70,
     label=True,
     dtype=None,
 ) -> np.ndarray:
@@ -115,7 +115,7 @@ def draw_mask(
     :param r: The radius of the sphere in voxels.
     :param c: A numpy array containing the center coordinates [x, y, z].
     :param label_mask: A numpy array representing the label mask (3D).
-    :return: A tuple of (cz, cy, cx) index arrays for the sphere voxels.
+    :return: A tuple of (cx, cy, cz) index arrays for the sphere voxels.
     """
     if label_mask.ndim != 3:
         raise ValueError(f"Unsupported dimensions {label_mask.ndim}, expected 3.")
@@ -124,8 +124,9 @@ def draw_mask(
     y = int(c[1])
     z = int(c[2])
 
-    cz, cy, cx = draw_sphere(r=r, c=(z, y, x), shape=label_mask.shape)
-    return cz, cy, cx
+    # input in polnet convention [x, y, z]
+    cx, cy, cz = draw_sphere(r=r, c=(x, y, z), shape=label_mask.shape)
+    return cx, cy, cz
 
 def draw_sphere(
     r: int, c: tuple, shape: tuple
