@@ -865,12 +865,34 @@ def generate_tomogram(tomo_index, global_params):
         f"\t\t\t+Time for generation: {(time.time() - hold_time) / 60} mins"
     )
 
+    # build actin segmentation mask
+    actin_motifs = [m for m in synth_tomo.get_motif_list() if m[2] == "actin"]
+
+    # array format [Label x X x Y x Z]
+    if actin_motifs:
+        coords = np.array(
+            [[m[3], m[4][0] / VOI_VSIZE, m[4][1] / VOI_VSIZE, m[4][2] / VOI_VSIZE] for m in actin_motifs],
+            dtype=np.float32
+        )
+        actin_mask = draw_instances(
+            mask_size=VOI_SHAPE,
+            coordinate=coords,
+            pixel_size=VOI_VSIZE,
+            circle_size=70,
+            label=True,
+        )
+        actin_mask = (actin_mask > 0).astype(np.float32)
+    else:
+        actin_mask = np.zeros(VOI_SHAPE, dtype=np.float32)
+
     # Storing simulated density results
-    tomo_den_out = TOMOS_DIR + "/tomo_den_" + str(tomo_index) + ".mrc"        
+    tomo_den_out = TOMOS_DIR + "/tomo_den_" + str(tomo_index) + ".mrc"
     lio.write_mrc(tomo_den, tomo_den_out, v_size=VOI_VSIZE)
-    synth_tomo.set_den(tomo_den_out)        
+    synth_tomo.set_den(tomo_den_out)
     tomo_lbls_out = TOMOS_DIR + "/tomo_lbls_" + str(tomo_index) + ".mrc"
-    lio.write_mrc(tomo_lbls, tomo_lbls_out, v_size=VOI_VSIZE)        
+    lio.write_mrc(tomo_lbls, tomo_lbls_out, v_size=VOI_VSIZE)
+    tomo_actin_out = TOMOS_DIR + "/tomo_actin_mask_" + str(tomo_index) + ".mrc"
+    lio.write_mrc(actin_mask, tomo_actin_out, v_size=VOI_VSIZE)
     poly_den_out = TOMOS_DIR + "/poly_den_" + str(tomo_index) + ".vtp"
     lio.save_vtp(poly_vtp, poly_den_out)        
     synth_tomo.set_poly(poly_den_out)

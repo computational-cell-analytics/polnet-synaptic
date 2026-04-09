@@ -26,7 +26,6 @@ import tarfile
 import math
 import numpy as np
 from polnet.utils import *
-from polnet.utils.draw_mask import draw_instances
 from polnet import lio
 from polnet import poly as pp
 from polnet.network import (
