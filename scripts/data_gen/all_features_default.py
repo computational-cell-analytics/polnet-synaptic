@@ -211,8 +211,8 @@ def parse_args():
                         help="Root path for membrane data.")
     parser.add_argument("--voi_shape", type=int, nargs=3, default=[630, 630, 184],
                         help="Shape of the volume of interest (VOI) as (x, y, z).")
-    #parser.add_argument("--voi_offs", type=int, nargs=6, default=[4, 996, 4, 996, 4, 246],
-    #                    help="Offsets for the VOI as (x_min, x_max, y_min, y_max, z_min, z_max).")
+    parser.add_argument("--z_pad", type=int, default=0,
+                        help="Number of empty z slices at the top and bottom of the VOI.")
     parser.add_argument("--voi_vsize", type=float, default=10.0, help="Voxel size in Ångströms.")
     parser.add_argument("--mmer_tries", type=int, default=1, help="Number of tries for monomer placement.")
     parser.add_argument("--pmer_tries", type=int, default=1000, help="Number of tries for polymer placement.")
@@ -910,7 +910,6 @@ def main():
     ROOT_PATH_ACTIN = args.root_path_actin
     ROOT_PATH_MEMBRANE = args.root_path_membrane
     VOI_SHAPE = tuple(args.voi_shape)
-    #VOI_OFFS = tuple(args.voi_offs)
     VOI_VSIZE = args.voi_vsize
     MMER_TRIES = args.mmer_tries
     PMER_TRIES = args.pmer_tries
@@ -947,7 +946,7 @@ def main():
     VOI_OFFS = (
         (4, VOI_SHAPE[0] - 4),
         (4, VOI_SHAPE[1] - 4),
-        (4, VOI_SHAPE[2] - 4),
+        (args.z_pad, VOI_SHAPE[2] - args.z_pad),
     )
 
     # OUTPUT LABELS
