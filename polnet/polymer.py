@@ -896,18 +896,13 @@ class HelixFiber(Polymer):
             and (hp_length > 0)
             and (mz_length > 0)
         )
-        self.__l, self.__lp, self.__lz = l_length, p_length, z_length_f
+        self.__l, self.__lp = l_length, p_length
         self.__hp, self.__mz_length = hp_length, mz_length
         self.__hp_astep = (360.0 * self.__mz_length) / self.__hp
-        self.__compute_helical_parameters()
         assert hasattr(vz, "__len__") and (len(vz) == 3)
         self.__vz = np.asarray(vz, dtype=float)
-        # Curve state member variables
-        self.__ct, self.__za, self.__rq = (
-            0.0,
-            0.0,
-            np.asarray((1.0, 0.0, 0.0, 0.0)),
-        )  # z-aligned curve time (considering speed 1)
+        self.__za = 0.0
+        self.__tangent = None
         self.set_reference(np.asarray(p0), self.__vz, rot_rand=rot_rand)
 
     def set_reference(
@@ -924,16 +919,14 @@ class HelixFiber(Polymer):
         """
         assert hasattr(p0, "__len__") and (len(p0) == 3)
         self._Polymer__p = np.asarray(p0)
-        vzr = vz / vector_module(vz)
         if rot_rand:
-            t = gen_uni_s2_sample(np.asarray((0.0, 0.0, 0.0)), 1.0)
-            M = vect_to_zmat(t, mode="passive")
-            self.__rq = rot_to_quat(M)
+            t_dir = gen_uni_s2_sample(np.asarray((0.0, 0.0, 0.0)), 1.0)
+            t_dir = t_dir / vector_module(t_dir)
         else:
-            self.__rq = np.asarray((1.0, 0.0, 0.0, 0.0))
-        t = self.__compute_tangent(self.__ct)
-        t = t * (self.__mz_length / vector_module(t))
-        self.__ct += self.__l
+            t_dir = np.asarray(vz, dtype=float)
+            t_dir = t_dir / vector_module(t_dir)
+        self.__tangent = t_dir
+        t = t_dir * self.__mz_length
         q1 = angle_axis_to_quat(self.__za, t[0], t[1], t[2])
         M = vect_to_zmat(t, mode="passive")
         q = rot_to_quat(M)
@@ -971,9 +964,10 @@ class HelixFiber(Polymer):
 
         hold_m = Monomer(self._Polymer__m_surf, self._Polymer__m_diam)
 
-        # Rotation
-        t = self.__compute_tangent(self.__ct)
-        t = t * (self.__mz_length / vector_module(t))
+        # WLC tangent step: stochastic deflection from current direction
+        t_dir = self.__wlc_step(self.__tangent)
+        t = t_dir * self.__mz_length
+        self.__tangent = t_dir
         self.__za = wrap_angle(self.__za + self.__hp_astep)
         q1 = angle_axis_to_quat(self.__za, t[0], t[1], t[2])
         M = vect_to_zmat(t, mode="passive")
@@ -982,7 +976,6 @@ class HelixFiber(Polymer):
 
         # Translation
         hold_r = self._Polymer__r[-1]
-        self.__ct += self.__l
         r = hold_r + t
         hold_m.translate(r)
 
@@ -1012,36 +1005,25 @@ class HelixFiber(Polymer):
 
         return r, t, q, hold_m
 
-    def __compute_helical_parameters(self):
+    def __get_perp_vectors(self, t):
+        """Return two orthonormal vectors perpendicular to unit vector t."""
+        ref = np.array([1.0, 0.0, 0.0]) if abs(t[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        u = np.cross(t, ref)
+        u /= np.linalg.norm(u)
+        v = np.cross(t, u)
+        return u, v
+
+    def __wlc_step(self, t_prev):
+        """Draw one WLC tangent step: isotropic Gaussian deflection from t_prev.
+
+        Angular variance per step is l/lp (valid for l << lp).
         """
-        Private method (fill class member variables) to compute helical parameters (a and b) from persistence length
-
-        :return:
-        """
-
-        # Compute curvature from persistence
-        k = math.acos(math.exp(-self.__l / self.__lp)) / self.__l
-
-        # Compute circular parameter, a, from curvature
-        self.__a = 1 / k
-
-        # Compute Z-axis elevation from the circular parameter
-        self.__b = self.__lz * self.__a
-
-    def __compute_tangent(self, t):
-        """
-        Computes curve (z-aligned axis) normalized tangent vector
-
-        :param t: input parameter, time assuming that speed is 1
-        :return: returns the normalized tangent vector (3 elements array)
-        """
-        sq = math.sqrt(self.__a * self.__a + self.__b * self.__b)
-        s = t
-        s_sq = s / sq
-        t = (1.0 / sq) * np.asarray(
-            (-self.__a * math.sin(s_sq), self.__a * math.cos(s_sq), self.__b)
-        )
-        return rot_vect_quat(t, self.__rq)
+        u, v = self.__get_perp_vectors(t_prev)
+        sigma = math.sqrt(self.__l / self.__lp)
+        dx = np.random.normal(0.0, sigma)
+        dy = np.random.normal(0.0, sigma)
+        t_new = t_prev + dx * u + dy * v
+        return t_new / np.linalg.norm(t_new)
 
 
 class FiberUnit(ABC):
