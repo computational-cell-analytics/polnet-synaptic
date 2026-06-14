@@ -1,0 +1,10 @@
+HLIX_TYPE = tube
+TUBE_RAD = 35                # tube radius in Å
+HLIX_PMER_L = 1.2
+HLIX_PMER_OCC = (0.1, 0.2)
+HLIX_MIN_P_LEN = 2.9e4        # persistence length
+HLIX_OVER_TOL = 0   
+HLIX_MIN_NMMER = 20
+
+TUBE_BPROP = 0.3
+TUBE_MAX_P_BRANCH = 3

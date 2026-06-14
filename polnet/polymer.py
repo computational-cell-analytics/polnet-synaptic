@@ -596,6 +596,26 @@ class Polymer(ABC):
     def gen_new_monomer(self):
         raise NotImplementedError
 
+    def get_perp_vectors(self, t):
+        """Return two orthonormal vectors perpendicular to unit vector t."""
+        ref = np.array([1.0, 0.0, 0.0]) if abs(t[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        u = np.cross(t, ref)
+        u /= np.linalg.norm(u)
+        v = np.cross(t, u)
+        return u, v
+
+    def wlc_step(self, t_prev, l, lp):
+        """Draw one WLC tangent step: isotropic Gaussian deflection from t_prev.
+
+        Angular variance per step is l/lp (valid for l << lp).
+        """
+        u, v = self.get_perp_vectors(t_prev)
+        sigma = math.sqrt(l / lp)
+        dx = np.random.normal(0.0, sigma)
+        dy = np.random.normal(0.0, sigma)
+        t_new = t_prev + dx * u + dy * v
+        return t_new / np.linalg.norm(t_new)
+
     def overlap_polymer(self, monomer, over_tolerance=0):
         """
         Determines if a monomer overlaps with other polymer's monomers
@@ -700,8 +720,9 @@ class SAWLC(Polymer):
         :param fix_dst: allows to set the distance for the new monomer externally (default None)
         :param ext_surf: allows to set the new mmer surface externally (default None)
         :param rot: None by default, otherwise allow to externally determine the rotation
+
         :return: a 4-tuple with monomer center point, associated tangent vector, rotated quaternion and monomer,
-                 return None in case the generation has failed
+            return None in case the generation has failed
         """
 
         # Translation
@@ -771,6 +792,7 @@ class SAWLCPoly(Polymer):
         :param id0: id for the initial monomer (default 0)
         :param code0: code string for the initial monomer (default '')
         :param rot: None by default, otherwise allow to externally determine the rotation
+
         :return:
         """
         assert hasattr(p0, "__len__") and (len(p0) == 3)
@@ -814,8 +836,9 @@ class SAWLCPoly(Polymer):
         :param fix_dst: allows to set the distance for the new monomer externally (default None)
         :param ext_surf: allows to set the new mmer surface externally (default None)
         :param rot: None by default, otherwise allow to extenerally determine the rotation
+
         :return: a 4-tuple with monomer center point, associated tangent vector, rotated quaternion and monomer,
-                 return None in case the generation has failed
+            return None in case the generation has failed
         """
 
         # Translation
@@ -884,9 +907,9 @@ class HelixFiber(Polymer):
         :param mz_length: monomer z-length
         :param z_length_f: helix elevation factor or slope
         :param p0: starting point (default origin (0,0,0))
-        :param vz: reference vector for z-axis (default (0, 0, 1)
+        :param vz: reference vector for z-axis (default (0,0,1))
         :param rot_rand: if True (default) the rotation of the first monomer (and consequently its tangent) is
-                         generated randomly, otherwise it is set to fit vz
+            generated randomly, otherwise it is set to fit vz
         """
         super(HelixFiber, self).__init__(m_surf)
         assert (
@@ -914,7 +937,8 @@ class HelixFiber(Polymer):
         :param p0: starting point
         :param vz: z-axis reference vector for helicoid parametrization
         :param rot_rand: if True (default) the rotation of the first monomer (and consequently its tangent) is
-                         generated randomly, otherwise it is set to fit vz
+            generated randomly, otherwise it is set to fit vz
+
         :return:
         """
         assert hasattr(p0, "__len__") and (len(p0) == 3)
@@ -948,24 +972,25 @@ class HelixFiber(Polymer):
         max_dist=None,
     ):
         """
-        Generates a new monomer according the flexible fiber model
+        Generates a new monomer according the flexible fiber model (updated to WLC model)
 
         :param over_tolerance: fraction of overlapping tolerance for self avoiding (default 0)
         :param voi: VOI to define forbidden regions (default None, not applied)
         :param v_size: VOI voxel size, it must be greater than 0 (default 1)
         :param net: if not None (default) it contain a network of polymers that must be avoided
         :param branch: input branch from where the current mmer starts, is avoid network avoiding at the branch,
-                       only valid in net is not None (default None).
+            only valid in net is not None (default None).
         :param max_dist: allows to externally set a maximum distance (in A) to search for collisions for network
-                         overlapping, otherwise 1.2 monomer diameter is used
+            overlapping, otherwise 1.2 monomer diameter is used
+
         :return: a 4-tuple with monomer center point, associated tangent vector, rotated quaternion and monomer,
-                 return None in case the generation has failed
+            return None in case the generation has failed
         """
 
         hold_m = Monomer(self._Polymer__m_surf, self._Polymer__m_diam)
 
         # WLC tangent step: stochastic deflection from current direction
-        t_dir = self.__wlc_step(self.__tangent)
+        t_dir = self.wlc_step(self.__tangent, self.__l, self.__lp)
         t = t_dir * self.__mz_length
         self.__tangent = t_dir
         self.__za = wrap_angle(self.__za + self.__hp_astep)
@@ -1004,28 +1029,87 @@ class HelixFiber(Polymer):
                         return None
 
         return r, t, q, hold_m
+    
+class TubeFiber(Polymer):
+    """
+    Class for modelling a generic flexible tube fiber according to the WLC model.
+    Simplified version of `HelixFiber` without the helical azimuthal twist;
+    monomers are spheres placed along a worm-like chain.
+    """
 
-    def __get_perp_vectors(self, t):
-        """Return two orthonormal vectors perpendicular to unit vector t."""
-        ref = np.array([1.0, 0.0, 0.0]) if abs(t[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
-        u = np.cross(t, ref)
-        u /= np.linalg.norm(u)
-        v = np.cross(t, u)
-        return u, v
-
-    def __wlc_step(self, t_prev):
-        """Draw one WLC tangent step: isotropic Gaussian deflection from t_prev.
-
-        Angular variance per step is l/lp (valid for l << lp).
+    def __init__(self, l_length, m_surf, p_length, p0=(0, 0, 0), vz=(0, 0, 1), rot_rand=True):
         """
-        u, v = self.__get_perp_vectors(t_prev)
-        sigma = math.sqrt(self.__l / self.__lp)
-        dx = np.random.normal(0.0, sigma)
-        dy = np.random.normal(0.0, sigma)
-        t_new = t_prev + dx * u + dy * v
-        return t_new / np.linalg.norm(t_new)
+        Constructor
 
+        :param l_length: link length (WLC step size)
+        :param m_surf: monomer surface (as vtkPolyData object)
+        :param p_length: persistence length
+        :param p0: starting point (default origin (0,0,0))
+        :param vz: reference vector for z-axis (default (0,0,1))
+        :param rot_rand: if True (default) the rotation of the first monomer (and consequently its tangent) is
+            generated randomly, otherwise it is set to fit vz
+        """
+        super(TubeFiber, self).__init__(m_surf)
+        assert ((l_length > 0) and (p_length > 0))
+        self.__l, self.__lp = l_length, p_length
+        self.__vz = np.asarray(vz, dtype=float)
+        self.__tangent = None
+        self.set_reference(np.asarray(p0), self.__vz, rot_rand=rot_rand)
 
+    def set_reference(self, p0=(0.0, 0.0, 0.0), vz=(0.0, 0.0, 1.0), rot_rand=True):
+        assert hasattr(p0, "__len__") and (len(p0) == 3)
+        self._Polymer__p = np.asarray(p0)
+        if rot_rand:
+            t_dir = gen_uni_s2_sample(np.asarray((0.0, 0.0, 0.0)), 1.0)
+            t_dir = t_dir / vector_module(t_dir)
+        else:
+            t_dir = np.asarray(vz, dtype=float)
+            t_dir = t_dir / vector_module(t_dir)
+        self.__tangent = t_dir
+        t = t_dir * self.__l 
+        M = vect_to_zmat(t, mode="passive")
+        q = rot_to_quat(M)
+        hold_monomer = Monomer(self._Polymer__m_surf, self._Polymer__m_diam)
+        hold_monomer.rotate_q(q)
+        hold_monomer.translate(p0)
+        self.add_monomer(p0, t, q, hold_monomer)
+
+    def gen_new_monomer(
+        self,
+        over_tolerance=0,
+        voi=None,
+        v_size=1,
+        net=None,
+        branch=None,
+        max_dist=None,
+    ):
+
+        hold_m = Monomer(self._Polymer__m_surf, self._Polymer__m_diam)
+
+        # WLC tangent step: stochastic deflection from current direction
+        t_dir = self.wlc_step(self.__tangent, self.__l, self.__lp)
+        t = t_dir * self.__l 
+        M = vect_to_zmat(t, mode="passive")
+        q = rot_to_quat(M)
+        hold_m.rotate_q(q)
+
+        # Translation
+        r = self._Polymer__r[-1] + t
+        hold_m.translate(r)
+
+        # Avoid forbidden regions
+        if voi is not None:
+            if hold_m.overlap_voi(voi, v_size, over_tolerance=over_tolerance):
+                return None
+        
+        # Network-avoiding
+        if net is not None:
+            if hold_m.overlap_net(net, over_tolerance=over_tolerance, max_dist=max_dist):
+                return None
+        
+        return r, t, q, hold_m
+
+    
 class FiberUnit(ABC):
     """
     Abstract class to generate fiber unit (set of monomers)
@@ -1038,6 +1122,92 @@ class FiberUnit(ABC):
     @abstractmethod
     def get_tomo(self):
         raise NotImplementedError
+
+
+class FiberUnitSphere(FiberUnit):
+    """
+    Class for modeling a fiber unit as a simple sphere.
+    """
+
+    def __init__(self, sph_rad, v_size=1):
+        """
+        Constructor
+
+        :param sph_rad: radius for sphere
+        :param v_size: voxel size (default 1)
+        """
+        assert (sph_rad > 0) and (v_size > 0)
+        self.__sph_rad, self.__v_size = float(sph_rad), float(v_size)
+        self.__size = int(math.ceil(6.0 * (sph_rad / v_size)))
+        if self.__size % 2 != 0:
+            self.__size += 1
+        self.__tomo, self.__surf = None, None
+        self.__gen_sphere()
+
+    def get_vtp(self):
+        return self.__surf
+
+    def get_tomo(self):
+        return self.__tomo
+
+    def __gen_sphere(self):
+        """
+        Contains the procedure to generate the sphere.
+        """
+
+        # Input parsing
+        sph_rad_v = self.__sph_rad / self.__v_size
+        sph_rad_v2 = sph_rad_v * sph_rad_v * 0.5625  # (0.75*rad)^2
+
+        # Generating the grid
+        self.__tomo = np.zeros(
+            shape=(self.__size, self.__size, self.__size), dtype=np.float32
+        )
+        dx, dy, dz = (
+            float(self.__tomo.shape[0]),
+            float(self.__tomo.shape[1]),
+            float(self.__tomo.shape[2]),
+        )
+        dx2, dy2, dz2 = (
+            math.floor(0.5 * dx),
+            math.floor(0.5 * dy),
+            math.floor(0.5 * dz),
+        )
+        x_l, y_l, z_l = -dx2, -dy2, -dz2
+        x_h, y_h, z_h = -dx2 + dx, -dy2 + dy, -dz2 + dz
+        X, Y, Z = np.meshgrid(
+            np.arange(x_l, x_h),
+            np.arange(y_l, y_h),
+            np.arange(z_l, z_h),
+            indexing="xy",
+        )
+        X += 0.5
+        Y += 0.5
+        Z += 0.5
+
+        # Generate the sphere (no offset)
+        R = X * X + Y * Y + Z * Z - sph_rad_v2
+
+        # lio.write_mrc(R.astype(np.float32), '/fs/pool/pool-lucic2/antonio/polnet/riboprot/synth_all/hold_R1.mrc')
+
+        self.__tomo = 1.0 / (1.0 + np.exp(-R))
+
+        # Generating the surfaces
+        self.__tomo = lin_map(
+            self.__tomo, lb=1, ub=0
+        )  # self.__tomo = lin_map(self.__tomo, lb=0, ub=1)
+        self.__surf = iso_surface(
+            self.__tomo, 0.25
+        )  # self.__surf = iso_surface(self.__tomo, .75)
+
+        # lio.write_mrc(self.__tomo, '/fs/pool/pool-lucic2/antonio/polnet/riboprot/synth_all/hold_funit1.mrc')
+        # lio.save_vtp(self.__surf, '/fs/pool/pool-lucic2/antonio/polnet/riboprot/synth_all/hold_funit1.vtp')
+
+        self.__surf = poly_scale(self.__surf, self.__v_size)
+        self.__surf = poly_translate(
+            self.__surf,
+            -0.5 * self.__v_size * (np.asarray(self.__tomo.shape) - 0.5),
+        )
 
 
 class FiberUnitSDimer(FiberUnit):

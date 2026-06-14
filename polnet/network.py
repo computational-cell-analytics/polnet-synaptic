@@ -8,7 +8,7 @@ __author__ = "Antonio Martinez-Sanchez"
 import scipy as sp
 
 from polnet.poly import *
-from polnet.polymer import SAWLC, SAWLCPoly, HelixFiber
+from polnet.polymer import SAWLC, SAWLCPoly, HelixFiber, TubeFiber
 from polnet.lrandom import (
     SGen,
     SGenUniform,
@@ -109,7 +109,8 @@ class Network(ABC):
         """
         Builds an instance of the network
 
-        :return: None"""
+        :return:
+        """
         raise NotImplemented
 
     def get_voi(self):
@@ -859,7 +860,7 @@ class NetHelixFiber(Network):
 
 class NetHelixFiberB(Network):
     """
-    Class for generating a network of brancked helix fibers randomly distributed
+    Class for generating a network of branched helix fibers randomly distributed
     """
 
     def __init__(
@@ -886,7 +887,7 @@ class NetHelixFiberB(Network):
         :param l_length: polymer link length
         :param m_surf: monomer surf
         :param gen_hfib_params: a instance of a random generation model (random.PGen.NetHelixFiberB) to obtain random fiber
-        parametrization for helix with branches
+            parametrization for helix with branches
         :param occ: occupancy threshold in percentage [0, 100]%
         :param min_p_len: minimum persistence length
         :param hp_len: helix period length
@@ -1149,6 +1150,136 @@ class NetHelixFiberB(Network):
         branch.set_t_pmer(len(self._Network__pl) - 1)
         self.__p_branches[branch.get_s_pmer()].append(branch)
 
+class NetTubeFiberB(NetHelixFiberB):
+    """
+    Class for generating a network of branched line fibers randomly distributed
+    """
+
+    def __init__(
+        self,
+        voi,
+        v_size,
+        l_length,
+        m_surf,
+        gen_hfib_params,
+        occ,
+        min_p_len,
+        b_prop,
+        max_p_branch=0,
+        over_tolerance=0,
+    ):
+        """
+        Construction
+
+        :param voi: a 3D numpy array to define a VOI (Volume Of Interest) for polymers
+        :param v_size: voxel size (default 1)
+        :param l_length: polymer link length
+        :param m_surf: monomer surf
+        :param gen_hfib_params: a instance of a random generation model (random.PGen.NetHelixFiberB) to obtain random fiber
+            parametrization for line fibers with branches
+        :param occ: occupancy threshold in percentage [0, 100]%
+        :param min_p_len: minimum persistence length
+        :param b_prop: branching probability, checked every time a new monomer is added
+        :param max_p_branch: maximum number of branches per polymer, if 0 (default) then no branches are generated
+        :param over_tolerance: fraction of overlapping tolerance for self avoiding (default 0, in range [0,1))
+        """
+
+        # Initialize parent with unused dummy variables
+        super().__init__(voi, v_size, l_length, m_surf, gen_hfib_params, occ, min_p_len,
+                         hp_len=1.0, mz_len=1.0, mz_len_f=0.0, b_prop=b_prop,
+                         max_p_branch=max_p_branch, over_tolerance=over_tolerance)
+
+        # Variables assignment
+        self.__l_length, self.__m_surf = l_length, m_surf
+        self.__gen_hfib_params = self._NetHelixFiberB__gen_hfib_params
+        self.__occ, self.__over_tolerance = occ, over_tolerance
+        self.__min_p_len = min_p_len
+        self.__max_p_branch, self.__b_prop = max_p_branch, b_prop
+        self.__p_branches = self._NetHelixFiberB__p_branches
+
+
+    def build_network(self):
+        """
+        Add line funtil an occupancy limit is passed
+
+        :return:
+        """
+        # Network loop
+        while self._Network__pl_occ < self.__occ:
+    
+            # Polymer initialization
+            max_length = (
+                math.sqrt(
+                    self._Network__voi.shape[0] ** 2
+                    + self._Network__voi.shape[1] ** 2
+                    + self._Network__voi.shape[2] ** 2
+                )
+                * self._Network__v_size
+            )
+            p_len = self.__gen_hfib_params.gen_persistence_length(
+                self.__min_p_len
+            )
+            branch = None
+            if (self.__max_p_branch > 0) and self.__gen_hfib_params.gen_branch(
+                self.__b_prop
+            ):
+                branch = self._NetHelixFiberB__gen_random_branch()
+            if branch is None:
+                p0 = np.asarray(
+                    (
+                        self._Network__voi.shape[0]
+                        * self._Network__v_size
+                        * random.random(),
+                        self._Network__voi.shape[1]
+                        * self._Network__v_size
+                        * random.random(),
+                        self._Network__voi.shape[2]
+                        * self._Network__v_size
+                        * random.random(),
+                    )
+                )
+            else:
+                p0 = branch.get_point()
+            hold_polymer = TubeFiber(
+                self.__l_length,
+                self.__m_surf,
+                p_len,
+                p0,
+            )
+
+            # Polymer loop
+            not_finished = True
+            while (hold_polymer.get_total_len() < max_length) and not_finished:
+                monomer_data = hold_polymer.gen_new_monomer(
+                    self.__over_tolerance,
+                    self._Network__voi,
+                    self._Network__v_size,
+                )
+                if monomer_data is None:
+                    not_finished = False
+                else:
+                    new_len = points_distance(
+                        monomer_data[0], hold_polymer.get_tail_point()
+                    )
+                    if hold_polymer.get_total_len() + new_len < max_length:
+                        hold_polymer.add_monomer(
+                            monomer_data[0],
+                            monomer_data[1],
+                            monomer_data[2],
+                            monomer_data[3]
+                        )
+                    else:
+                        not_finished = False
+            
+            # Updating Polymer
+            if hold_polymer.get_num_mmers() >= self._Network__min_nmmer:
+                if branch is not None:
+                    self.add_polymer(hold_polymer)
+                    self.__p_branches.append(list())
+                    self._NetHelixFiberB__add_branch(hold_polymer, branch)
+                else:
+                    self.add_polymer(hold_polymer)
+                    self.__p_branches.append(list())
 
 class Branch:
     """

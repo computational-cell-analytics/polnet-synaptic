@@ -33,8 +33,9 @@ from polnet.network import (
     NetSAWLCInter,
     NetHelixFiber,
     NetHelixFiberB,
+    NetTubeFiberB,
 )
-from polnet.polymer import FiberUnitSDimer, MTUnit, MB_DOMAIN_FIELD_STR
+from polnet.polymer import FiberUnitSDimer, FiberUnitSphere, MTUnit, MB_DOMAIN_FIELD_STR
 from polnet.stomo import (
     MmerFile,
     MbFile,
@@ -43,6 +44,7 @@ from polnet.stomo import (
     HelixFile,
     MTFile,
     ActinFile,
+    TubeFile,
     MmerMbFile,
 )
 from polnet.lrandom import (
@@ -279,9 +281,11 @@ def parse_args():
     parser.add_argument("--surf_dec", type=float, default=0.9,
                         help="Target reduction factor for surface decimation.")
     parser.add_argument("--mt_pmer_occ", type=float, default=None,
-                        help="Microtubule polymer occupany (percentage). If not provided, defaults to value specified in in_helix/mt.hns")
+                        help="Microtubule polymer occupany (percentage). If not provided, defaults to value specified in in_helix/mt.hns.")
     parser.add_argument("--actin_pmer_occ", type=float, default=None,
-                        help="Actin polymer occupancy (percentage). If not provided, defaults to value specified in in_helix/actin.hns")
+                        help="Actin polymer occupancy (percentage). If not provided, defaults to value specified in in_helix/actin.hns.")
+    parser.add_argument("--tube_pmer_occ", type=float, default=None,
+                        help="Generic tube polymer occupancy (percentage). If not provided, defaults to value specified in_helix/tube.hns.")
     
     return parser.parse_args()
 
@@ -294,8 +298,8 @@ def generate_tomogram(tomo_index, global_params):
     # Unpack global parameters
     (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE,
      MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, USE_PMER_OCC_LIST,
-     LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP) = global_params
+     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TUBE_PMER_OCC, USE_PMER_OCC_LIST,
+     LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP, LBL_TB) = global_params
 
     TOMOS_DIR = OUT_DIR + "/tomos"
     configure_logging(OUT_DIR, tomo_index)
@@ -340,7 +344,7 @@ def generate_tomogram(tomo_index, global_params):
     #synth_tomo = SynthTomo()
     poly_vtp, mbs_vtp, skel_vtp = None, None, None
     entity_id = 1
-    mb_voxels, ac_voxels, mt_voxels, cp_voxels, mp_voxels = 0, 0, 0, 0, 0
+    mb_voxels, ac_voxels, mt_voxels, tb_voxels, cp_voxels, mp_voxels = 0, 0, 0, 0, 0, 0
     set_mbs = None
 
     # Membranes loop
@@ -453,8 +457,8 @@ def generate_tomogram(tomo_index, global_params):
             mbs_vtp.DeepCopy(poly_vtp)
 
     # Loop for Helicoidal structures
-    count_actins, count_mts = 0, 0        
-    for p_id, p_file in tqdm(enumerate(HELIX_LIST),desc="Generating helicoidal structures"):
+    count_mts, count_actins, count_tubes = 0, 0, 0
+    for p_id, p_file in tqdm(enumerate(HELIX_LIST), desc="Generating helicoidal structures"):
 
         print("\tPROCESSING FILE:", p_file)
             
@@ -468,6 +472,9 @@ def generate_tomogram(tomo_index, global_params):
 
         elif helix.get_type() == "actin" and ACTIN_PMER_OCC is not None:
             hold_occ = ACTIN_PMER_OCC
+        
+        elif helix.get_type() == "tube" and TUBE_PMER_OCC is not None:
+            hold_occ = TUBE_PMER_OCC
                         
         else: 
             hold_occ = helix.get_occ()
@@ -538,17 +545,52 @@ def generate_tomogram(tomo_index, global_params):
             if helix.get_min_nmmer() is not None:
                 net_helix.set_min_nmmer(helix.get_min_nmmer())
             net_helix.build_network()                
-            # Geting branches poly
+            # Getting branches poly
             br_vtp = pp.points_to_poly_spheres(
                 points=[
                     [0, 0, 0],                    
                 ],
                 rad=helix.get_mmer_rad(),
             )
-            lio.save_vtp(
-                net_helix.get_branches_vtp(shape_vtp=br_vtp),
-                TOMOS_DIR + "/poly_br_" + str(tomo_index) + ".vtp",
+            #lio.save_vtp(
+            #    net_helix.get_branches_vtp(shape_vtp=br_vtp),
+            #    TOMOS_DIR + "/poly_br_" + str(tomo_index) + ".vtp",
+            #)
+        elif helix.get_type() == "tube":
+            helix = TubeFile()
+            helix.load_tb_file(ROOT_PATH_ACTIN + "/" + p_file)
+            # Fiber unit generation
+            funit = FiberUnitSphere(helix.get_tube_rad(), VOI_VSIZE)
+            model_svol, model_surf = funit.get_tomo(), funit.get_vtp()
+            # Helix Fiber parameters model
+            pol_generator = PGenHelixFiberB()
+            # Network generation
+            net_helix = NetTubeFiberB(
+                voi,
+                VOI_VSIZE,
+                helix.get_tube_rad(), #TODO adjust l_length (monomer spacing)
+                model_surf, 
+                pol_generator,
+                hold_occ,
+                helix.get_min_p_len(),
+                helix.get_bprop(),
+                helix.get_p_branch(),
+                helix.get_over_tol(),
             )
+            if helix.get_min_nmmer() is not None:
+                net_helix.set_min_nmmer(helix.get_min_nmmer())
+            net_helix.build_network()
+            # Getting branches poly
+            br_vtp = pp.points_to_poly_spheres(
+                points=[
+                    [0, 0, 0],
+                ],
+                rad=helix.get_tube_rad(),
+            )
+            #lio.save_vtp(
+            #    net_helix.get_branches_vtp(shape_vtp=br_vtp),
+            #    TOMOS_DIR + "/poly_br_" + str(tomo_index) + ".vtp",
+            #)
         else:
             print("ERROR: Helicoidal type", helix.get_type(), "not recognized!")
             sys.exit()
@@ -589,11 +631,16 @@ def generate_tomogram(tomo_index, global_params):
             pp.add_label_to_poly(hold_skel_vtp, LBL_MT, "Type", mode="both")
             count_mts += net_helix.get_num_pmers()
             mt_voxels += (tomo_lbls == entity_id).sum()
-        elif helix.get_type() == "actin":                
+        elif helix.get_type() == "actin":
             pp.add_label_to_poly(hold_vtp, LBL_AC, "Type", mode="both")
             pp.add_label_to_poly(hold_skel_vtp, LBL_AC, "Type", mode="both")
             count_actins += net_helix.get_num_pmers()
             ac_voxels += (tomo_lbls == entity_id).sum()
+        elif helix.get_type() == "tube":
+            pp.add_label_to_poly(hold_vtp, LBL_TB, "Type", mode="both")
+            pp.add_label_to_poly(hold_skel_vtp, LBL_TB, "Type", mode="both")
+            count_tubes += net_helix.get_num_pmers()
+            tb_voxels += (tomo_lbls == entity_id).sum()
         if poly_vtp is None:
             poly_vtp = hold_vtp
             skel_vtp = hold_skel_vtp
@@ -845,6 +892,9 @@ def generate_tomogram(tomo_index, global_params):
         f"\t\t\t+Microtublues: {count_mts} #, {mt_voxels * vx_um3} um**3, {100.0 * (mt_voxels / voi_voxels)} %"
     )
     print(
+        f"\t\t\t+Tubes: {count_tubes} #, {tb_voxels * vx_um3} um**3, {100.0 * (tb_voxels / voi_voxels)} %"
+    )
+    print(
         f"\t\t\t+Proteins: {count_prots} #, {cp_voxels * vx_um3} um**3, {100.0 * (cp_voxels / voi_voxels)} %"
     )
     print(
@@ -862,9 +912,8 @@ def generate_tomogram(tomo_index, global_params):
         f"\t\t\t+Time for generation: {(time.time() - hold_time) / 60} mins"
     )
 
-    # TODO debugging actin mask
     # build actin segmentation mask
-    actin_motifs = [m for m in synth_tomo.get_motif_list() if m[2] == "actin"]
+    actin_motifs = [m for m in synth_tomo.get_motif_list() if m[2] in ("actin", "tube")]
 
     # array format [Label x X x Y x Z]
     if actin_motifs:
@@ -922,6 +971,7 @@ def main():
     SURF_DEC = args.surf_dec
     MT_PMER_OCC = args.mt_pmer_occ
     ACTIN_PMER_OCC = args.actin_pmer_occ
+    TUBE_PMER_OCC = args.tube_pmer_occ
 
     disable_membranes = args.disable_membranes
     disable_cytosolic_proteins = args.disable_cytosolic_proteins
@@ -955,6 +1005,7 @@ def main():
     LBL_MT = 3
     LBL_CP = 4
     LBL_MP = 5
+    LBL_TB = 6
     # LBL_BR = 6
 
     # Set output dir
@@ -992,8 +1043,8 @@ def main():
     global_params = (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE,
                      VOI_SHAPE, VOI_OFFS, VOI_VSIZE, MMER_TRIES, PMER_TRIES,
                      SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-                     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC,
-                     USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP)
+                     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TUBE_PMER_OCC,
+                     USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP, LBL_TB)
 
     # Save labels table
     unit_lbl = 1

@@ -456,7 +456,7 @@ class ActinFile(HelixFile):
         """
         Load protein parameters from an input file
 
-        :param in_file: path to the input file with extension .mbs
+        :param in_file: path to the input file with extension .hns
         """
 
         super().load_hx_file(in_file)
@@ -480,6 +480,55 @@ class ActinFile(HelixFile):
                     elif var == "A_MAX_P_BRANCH":
                         self.__p_branch = float(value)
 
+class TubeFile(HelixFile):
+    """
+    For handling the configuration file for a generic tube which adheres to the WLC model (inherits from Helix).
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.__tube_rad = None
+        self.__bprop = None
+        self.__p_branch = None
+
+    def get_tube_rad(self):
+        return self.__tube_rad
+
+    def get_bprop(self):
+        return self.__bprop
+
+    def get_p_branch(self):
+        return self.__p_branch
+
+    def load_tb_file(self, in_file):
+        """
+        Load protein parameters from an input file
+
+        :param in_file: path to the input file with extension .hns
+        """
+
+        super().load_hx_file(in_file)
+
+        # Reading input file
+        with open(in_file) as file:
+            for linea in file:
+                if len(linea.strip()) > 0:
+
+                    # Remove coments
+                    linea = linea.split("#", 1)[0]
+
+                    # Parsing an file entry
+                    var, value = linea.split("=")
+                    var = var.replace(" ", "")
+                    var = var.replace("\n", "")
+                    value = value.replace(" ", "")
+                    value = value.replace("\n", "")
+                    if var == "TUBE_RAD":
+                        self.__tube_rad = float(value)
+                    elif var == "TUBE_BPROP":
+                        self.__bprop = float(value)
+                    elif var == "TUBE_MAX_P_BRANCH":
+                        self.__p_branch = float(value)
 
 class SynthTomo:
     """
