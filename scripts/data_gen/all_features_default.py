@@ -280,13 +280,19 @@ def parse_args():
                         help="Polymer occupancy list for proteins.")                    
     parser.add_argument("--surf_dec", type=float, default=0.9,
                         help="Target reduction factor for surface decimation.")
-    parser.add_argument("--mt_pmer_occ", type=float, default=None,
-                        help="Microtubule polymer occupany (percentage). If not provided, defaults to value specified in in_helix/mt.hns.")
-    parser.add_argument("--actin_pmer_occ", type=float, default=None,
-                        help="Actin polymer occupancy (percentage). If not provided, defaults to value specified in in_helix/actin.hns.")
-    parser.add_argument("--tube_pmer_occ", type=float, default=None,
-                        help="Generic tube polymer occupancy (percentage). If not provided, defaults to value specified in_helix/tube.hns.")
-    
+    parser.add_argument("--mt_pmer_occ", type=float, nargs="+", default=None,
+                        help="Microtubule polymer occupany (percentage), single value or [min max] range" \
+                        "If not provided, defaults to HLIX_PMER_OCC specified in in_helix/mt.hns.")
+    parser.add_argument("--actin_pmer_occ", type=float, nargs="+", default=None,
+                        help="Actin polymer occupancy (percentage), single value or [min max] range. " \
+                        "If not provided, defaults to HLIX_PMER_OCC specified in in_helix/actin.hns.")
+    parser.add_argument("--tube_pmer_occ", type=float, nargs="+", default=None,
+                        help="Generic tube polymer occupancy (percentage), single value or [min max] range. " \
+                        "If not provided, defaults to HLIX_PMER_OCC specified in in_helix/tube.hns.")
+    parser.add_argument("--tube_p_len", type=float, nargs="+", default=None,
+                        help="Generic tube persistence length (Angstrom), single value or [min max] range. " \
+                        "If not provided, defaults to HLIX_MIN_P_LEN specified in in_helix/tube.hns.")
+
     return parser.parse_args()
 
 def generate_tomogram(tomo_index, global_params):
@@ -298,7 +304,7 @@ def generate_tomogram(tomo_index, global_params):
     # Unpack global parameters
     (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE,
      MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TUBE_PMER_OCC, USE_PMER_OCC_LIST,
+     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TUBE_PMER_OCC, TUBE_P_LEN, USE_PMER_OCC_LIST,
      LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP, LBL_TB) = global_params
 
     TOMOS_DIR = OUT_DIR + "/tomos"
@@ -469,19 +475,29 @@ def generate_tomogram(tomo_index, global_params):
         # Generating the occupancy, with option to override with CLI input
         if helix.get_type() == "mt" and MT_PMER_OCC is not None:
             hold_occ = MT_PMER_OCC
-
         elif helix.get_type() == "actin" and ACTIN_PMER_OCC is not None:
             hold_occ = ACTIN_PMER_OCC
-        
         elif helix.get_type() == "tube" and TUBE_PMER_OCC is not None:
-            hold_occ = TUBE_PMER_OCC
-                        
-        else: 
+            hold_occ = TUBE_PMER_OCC         
+        else:
             hold_occ = helix.get_occ()
-            if hasattr(hold_occ, "__len__"):
-                hold_occ = OccGen(hold_occ).gen_occupancy()
+
+        # Resolve a [min, max] range to a uniform sample per tomogram; single value passes through
+        if hasattr(hold_occ, "__len__"):
+            hold_occ = OccGen(hold_occ).gen_occupancy() if len(hold_occ) > 1 else hold_occ[0]
 
         print(f"{p_id} polymer occupancy is {hold_occ}%")
+
+        # Persistence length, with option to override with CLI input
+        if helix.get_type() == "tube" and TUBE_P_LEN is not None:
+            hold_p_len = TUBE_P_LEN
+            if hasattr(hold_p_len, "__len__"):
+                hold_p_len = (
+                    random.uniform(hold_p_len[0], hold_p_len[1]) if len(hold_p_len) > 1 else hold_p_len[0]
+                )
+        else:
+            hold_p_len = helix.get_min_p_len()
+        print(f"{p_id} persistence length is {hold_p_len} A")
 
 
         # Helicoida random generation by type
@@ -572,7 +588,7 @@ def generate_tomogram(tomo_index, global_params):
                 model_surf, 
                 pol_generator,
                 hold_occ,
-                helix.get_min_p_len(),
+                hold_p_len,
                 helix.get_bprop(),
                 helix.get_p_branch(),
                 helix.get_over_tol(),
@@ -972,6 +988,7 @@ def main():
     MT_PMER_OCC = args.mt_pmer_occ
     ACTIN_PMER_OCC = args.actin_pmer_occ
     TUBE_PMER_OCC = args.tube_pmer_occ
+    TUBE_P_LEN = args.tube_p_len
 
     disable_membranes = args.disable_membranes
     disable_cytosolic_proteins = args.disable_cytosolic_proteins
@@ -1044,7 +1061,7 @@ def main():
                      VOI_SHAPE, VOI_OFFS, VOI_VSIZE, MMER_TRIES, PMER_TRIES,
                      SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
                      PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TUBE_PMER_OCC,
-                     USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP, LBL_TB)
+                     TUBE_P_LEN, USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP, LBL_TB)
 
     # Save labels table
     unit_lbl = 1

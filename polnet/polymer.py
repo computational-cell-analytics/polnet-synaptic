@@ -1088,7 +1088,8 @@ class TubeFiber(Polymer):
 
         # WLC tangent step: stochastic deflection from current direction
         t_dir = self.wlc_step(self.__tangent, self.__l, self.__lp)
-        t = t_dir * self.__l 
+        self.__tangent = t_dir
+        t = t_dir * self.__l
         M = vect_to_zmat(t, mode="passive")
         q = rot_to_quat(M)
         hold_m.rotate_q(q)
