@@ -289,9 +289,12 @@ def parse_args():
     parser.add_argument("--tube_pmer_occ", type=float, nargs="+", default=None,
                         help="Generic tube polymer occupancy (percentage), single value or [min max] range. " \
                         "If not provided, defaults to HLIX_PMER_OCC specified in in_helix/tube.hns.")
-    parser.add_argument("--tube_p_len", type=float, nargs="+", default=None,
+    parser.add_argument("--tube_p_length", type=float, nargs="+", default=None,
                         help="Generic tube persistence length (Angstrom), single value or [min max] range. " \
                         "If not provided, defaults to HLIX_MIN_P_LEN specified in in_helix/tube.hns.")
+    parser.add_argument("--tube_radius", type=float, default=None,
+                        help="Generic tube radius (Angstrom). " \
+                        "If not provided, defaults to the radius specified in in_helix/tube.hns.")
 
     return parser.parse_args()
 
@@ -304,7 +307,7 @@ def generate_tomogram(tomo_index, global_params):
     # Unpack global parameters
     (OUT_DIR, ROOT_PATH, ROOT_PATH_ACTIN, ROOT_PATH_MEMBRANE, VOI_SHAPE, VOI_OFFS, VOI_VSIZE,
      MMER_TRIES, PMER_TRIES, SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
-     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TUBE_PMER_OCC, TUBE_P_LEN, USE_PMER_OCC_LIST,
+     PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TUBE_PMER_OCC, TUBE_P_LENGTH, TUBE_RADIUS, USE_PMER_OCC_LIST,
      LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP, LBL_TB) = global_params
 
     TOMOS_DIR = OUT_DIR + "/tomos"
@@ -489,8 +492,8 @@ def generate_tomogram(tomo_index, global_params):
         print(f"{p_id} polymer occupancy is {hold_occ}%")
 
         # Persistence length, with option to override with CLI input
-        if helix.get_type() == "tube" and TUBE_P_LEN is not None:
-            hold_p_len = TUBE_P_LEN
+        if helix.get_type() == "tube" and TUBE_P_LENGTH is not None:
+            hold_p_len = TUBE_P_LENGTH
             if hasattr(hold_p_len, "__len__"):
                 hold_p_len = (
                     random.uniform(hold_p_len[0], hold_p_len[1]) if len(hold_p_len) > 1 else hold_p_len[0]
@@ -575,8 +578,9 @@ def generate_tomogram(tomo_index, global_params):
         elif helix.get_type() == "tube":
             helix = TubeFile()
             helix.load_tb_file(ROOT_PATH_ACTIN + "/" + p_file)
+            hold_tube_rad = TUBE_RADIUS if TUBE_RADIUS is not None else helix.get_tube_rad()
             # Fiber unit generation
-            funit = FiberUnitSphere(helix.get_tube_rad(), VOI_VSIZE)
+            funit = FiberUnitSphere(hold_tube_rad, VOI_VSIZE)
             model_svol, model_surf = funit.get_tomo(), funit.get_vtp()
             # Helix Fiber parameters model
             pol_generator = PGenHelixFiberB()
@@ -584,8 +588,8 @@ def generate_tomogram(tomo_index, global_params):
             net_helix = NetTubeFiberB(
                 voi,
                 VOI_VSIZE,
-                helix.get_tube_rad(), #TODO adjust l_length (monomer spacing)
-                model_surf, 
+                hold_tube_rad, #TODO adjust l_length (monomer spacing)
+                model_surf,
                 pol_generator,
                 hold_occ,
                 hold_p_len,
@@ -601,7 +605,7 @@ def generate_tomogram(tomo_index, global_params):
                 points=[
                     [0, 0, 0],
                 ],
-                rad=helix.get_tube_rad(),
+                rad=hold_tube_rad,
             )
             #lio.save_vtp(
             #    net_helix.get_branches_vtp(shape_vtp=br_vtp),
@@ -988,7 +992,8 @@ def main():
     MT_PMER_OCC = args.mt_pmer_occ
     ACTIN_PMER_OCC = args.actin_pmer_occ
     TUBE_PMER_OCC = args.tube_pmer_occ
-    TUBE_P_LEN = args.tube_p_len
+    TUBE_P_LENGTH = args.tube_p_length
+    TUBE_RADIUS = args.tube_radius
 
     disable_membranes = args.disable_membranes
     disable_cytosolic_proteins = args.disable_cytosolic_proteins
@@ -1061,7 +1066,7 @@ def main():
                      VOI_SHAPE, VOI_OFFS, VOI_VSIZE, MMER_TRIES, PMER_TRIES,
                      SEED, MEMBRANES_LIST, HELIX_LIST, PROTEINS_LIST, MB_PROTEINS_LIST,
                      PMER_OCC_LIST, SURF_DEC, MT_PMER_OCC, ACTIN_PMER_OCC, TUBE_PMER_OCC,
-                     TUBE_P_LEN, USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP, LBL_TB)
+                     TUBE_P_LENGTH, TUBE_RADIUS, USE_PMER_OCC_LIST, LBL_MB, LBL_AC, LBL_MT, LBL_CP, LBL_MP, LBL_TB)
 
     # Save labels table
     unit_lbl = 1
