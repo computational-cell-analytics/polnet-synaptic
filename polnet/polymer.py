@@ -1216,15 +1216,17 @@ class FiberUnitSDimer(FiberUnit):
     Class for modeling a fiber unit as dimer of two spheres
     """
 
-    def __init__(self, sph_rad, v_size=1):
+    def __init__(self, sph_rad, v_size=1, lowpass=30):
         """
         Constructor
 
         :param sph_rad: radius for spheres
         :param v_size: voxel size (default 1)
+        :param lowpass: low-pass target resolution in Angstrom (default 30), simulates a
+            tomogram's effective resolving power
         """
         assert (sph_rad > 0) and (v_size > 0)
-        self.__sph_rad, self.__v_size = float(sph_rad), float(v_size)
+        self.__sph_rad, self.__v_size, self.__lowpass = float(sph_rad), float(v_size), float(lowpass)
         self.__size = int(math.ceil(6.0 * (sph_rad / v_size)))
         if self.__size % 2 != 0:
             self.__size += 1
@@ -1297,6 +1299,8 @@ class FiberUnitSDimer(FiberUnit):
         self.__surf = iso_surface(
             self.__tomo, 0.25
         )  # self.__surf = iso_surface(self.__tomo, .75)
+
+        self.__tomo = lowpass_filter(self.__tomo, self.__v_size, self.__lowpass)
 
         # lio.write_mrc(self.__tomo, '/fs/pool/pool-lucic2/antonio/polnet/riboprot/synth_all/hold_funit1.mrc')
         # lio.save_vtp(self.__surf, '/fs/pool/pool-lucic2/antonio/polnet/riboprot/synth_all/hold_funit1.vtp')

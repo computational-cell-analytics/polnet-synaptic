@@ -12,6 +12,7 @@ import vtk
 import math
 import numpy as np
 import skimage
+import scipy.ndimage
 
 from vtkmodules.util import numpy_support
 
@@ -583,6 +584,45 @@ def clean_dir(dir):
                 if err.errno != errno.EBUSY:
                     os.chmod(d_name, stat.S_IWRITE)
                     os.remove(d_name)
+
+
+def bin_volume(volume, voxel_size, bin_factor, is_label=False):
+    """
+    Resample a 3D volume by a bin factor, updating its voxel size accordingly
+
+    :param volume: input volume (ndarray)
+    :param voxel_size: current voxel size (Angstrom)
+    :param bin_factor: scaling factor, output voxel size is voxel_size * bin_factor
+    :param is_label: if True (default False), use nearest-neighbor interpolation without antialiasing
+    :return: a tuple (resampled volume, new voxel size)
+    """
+    if bin_factor == 0:
+        return volume, voxel_size
+
+    scale = (1 / bin_factor,) * 3
+
+    if is_label:
+        volume = skimage.transform.rescale(volume, scale, order=0, anti_aliasing=False, preserve_range=True)
+    else:
+        volume = skimage.transform.rescale(volume, scale, preserve_range=True)
+
+    voxel_size = voxel_size * bin_factor
+
+    return volume, voxel_size
+
+
+def lowpass_filter(volume, source_vsize, target_vsize, sigma_factor=0.187):
+    """
+    Gaussian low pass filter a volume, molmap-style
+
+    :param volume: input volume (ndarray)
+    :param source_vsize: current voxel size of volume (Angstrom)
+    :param target_vsize: voxel size to low pass to (Angstrom)
+    :param sigma_factor: molmap-style resolution-to-sigma constant (default 0.187)
+    :return: the filtered volume
+    """
+    sigma = sigma_factor * (target_vsize / source_vsize)
+    return scipy.ndimage.gaussian_filter(volume, sigma)
 
 
 def vol_cube(vol, off=0):

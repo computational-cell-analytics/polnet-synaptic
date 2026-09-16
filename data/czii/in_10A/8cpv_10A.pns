@@ -1,0 +1,7 @@
+MMER_ID = pdb_8cpv
+MMER_SVOL =/templates/mrcs_10A/8cpv.mrc
+MMER_ISO = 0.10096154939195842
+PMER_L = 1.2
+PMER_L_MAX = 1.0  # Reduced maximum polymer length
+PMER_OCC = 0.25      # Reduced occupancy
+PMER_OVER_TOL = 0.001 # Reduced overlap tolerance

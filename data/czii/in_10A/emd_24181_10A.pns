@@ -1,0 +1,7 @@
+MMER_ID = emd_24181  # thyroglobulin
+MMER_SVOL = /templates/mrcs_10A/emd_24181.mrc
+MMER_ISO = 0.337890625
+PMER_L = 1.2
+PMER_L_MAX = 1.0
+PMER_OCC = 0.0625
+PMER_OVER_TOL = 0.001

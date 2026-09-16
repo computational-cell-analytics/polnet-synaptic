@@ -1,0 +1,7 @@
+MMER_ID = emd_3883  # ribosome
+MMER_SVOL = /templates/mrcs_10A/emd_3883.mrc
+MMER_ISO = 0.298828125
+PMER_L = 1.2
+PMER_L_MAX = 1.0
+PMER_OCC = 0.75
+PMER_OVER_TOL = 0.001
