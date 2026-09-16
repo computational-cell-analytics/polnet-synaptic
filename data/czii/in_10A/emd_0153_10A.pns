@@ -1,0 +1,7 @@
+MMER_ID = emd_0153  # beta-galactosidase
+MMER_SVOL = /templates/mrcs_10A/emd_0153.mrc
+MMER_ISO = 0.384765625
+PMER_L = 1.2
+PMER_L_MAX = 1.0
+PMER_OCC = 0.0325
+PMER_OVER_TOL = 0.001

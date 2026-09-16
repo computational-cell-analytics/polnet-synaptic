@@ -17,6 +17,8 @@ etc
 
 # Data
 data_generated
+*.gz
+tests/out/
 
 # Files
 pyvenv.cfg
